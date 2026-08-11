@@ -98,8 +98,15 @@ while IFS= read -r -d '' elf; do
 			continue
 			;;
 	esac
-	if file -b "$elf" | grep -q '^ELF '; then
+	# Some Android ELF files are reported by `file` as "ELF shared object"
+	# rather than as an executable. Match the stable ELF marker instead of a
+	# more specific description so the main interpreter is relocated too.
+	if file -b "$elf" | grep -q 'ELF'; then
 		patchelf --set-rpath "$rpath" "$elf"
+		if [[ "$relative" == bin/python* ]]; then
+			printf 'RUNPATH %s: ' "$relative"
+			patchelf --print-rpath "$elf"
+		fi
 	fi
 done < <(find "$install_dir" -type f \( -perm -111 -o -name '*.so*' \) -print0)
 
