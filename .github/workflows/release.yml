@@ -237,6 +237,7 @@ jobs:
           mkdir -p dist
           cp downloaded/cpython-*.tar.gz dist/
           python scripts/generate-catalog.py versions.json runtime-test dist
+          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -247,16 +248,28 @@ jobs:
               entry["url"] = f"file:///repo/dist/{entry['url'].rsplit('/', 1)[-1]}"
           path.write_text(json.dumps(catalog, indent=2) + "\n")
           PY
-          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
 
       - name: Enable aarch64 containers through QEMU
         run: docker run --rm --privileged aptman/qus@sha256:9511e9363ce42fd18b9448151b1e0f6323eed396c5279295080375e01cc1b626 -s -- -p aarch64
 
-      - name: Install and run both Python versions in Termux Docker
+      - name: Install and run all supported Python versions in Termux Docker
         run: |
+          supported_pythons=$(python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("versions.json").read_text())
+          print(" ".join(
+              stream["python"]
+              for stream in manifest["streams"]
+              if stream["status"] == "supported"
+          ))
+          PY
+          )
           docker run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/repo" \
             -w /repo \
+            -e SUPPORTED_PYTHONS="$supported_pythons" \
             --entrypoint /entrypoint_root.sh \
             termux/termux-docker@sha256:a8391ea57d799e10d0f3cf5ed41f32caf880c150275bda910233a5438bae0042 \
             /data/data/com.termux/files/usr/bin/sh -lc '
@@ -264,7 +277,8 @@ jobs:
               apt update
               apt install -y uv
               export UV_PYTHON_DOWNLOADS_JSON_URL=file:///repo/dist/python-downloads.json
-              uv python install --reinstall 3.13 3.14
-              /repo/scripts/smoke-test.sh "$(uv python find 3.13)"
-              /repo/scripts/smoke-test.sh "$(uv python find 3.14)"
+              uv python install --reinstall $SUPPORTED_PYTHONS
+              for python_stream in $SUPPORTED_PYTHONS; do
+                /repo/scripts/smoke-test.sh "$(uv python find "$python_stream")"
+              done
             '

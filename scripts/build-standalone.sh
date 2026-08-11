@@ -26,15 +26,22 @@ git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
 
 # The current build infrastructure uses this patch name while building the
 # minimal host Python. Older Python recipes used a different sequence of patch
-# names, so restore the current compatibility patch alongside the historical
-# recipe when necessary.
+# names, so expose their equivalent ctypes patch under the current name. Keep
+# only one copy: the generic package patch loop also sees this directory.
 if [[ ! -f "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch" ]]; then
-	if git -C "$repo_dir" cat-file -e "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" 2>/dev/null; then
-		git -C "$repo_dir" show "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" \
-			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
-		# The historical recipe would otherwise apply this same patch again
-		# under its original name during the generic package patch loop.
-		rm -f "$repo_dir/packages/python/0009-fix-ctypes-util-find_library.patch"
+	compat_patch=""
+	for candidate in \
+		0009-fix-ctypes-util-find_library.patch \
+		0003-ctypes-util-use-llvm-tools.patch \
+		Lib-ctypes-util.py.patch; do
+		if [[ -f "$repo_dir/packages/python/$candidate" ]]; then
+			compat_patch="$repo_dir/packages/python/$candidate"
+			break
+		fi
+	done
+	if [[ -n "$compat_patch" ]]; then
+		cp "$compat_patch" "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+		rm -f "$compat_patch"
 	else
 		git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
 			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"

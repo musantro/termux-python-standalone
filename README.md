@@ -27,6 +27,9 @@ export UV_PYTHON_DOWNLOADS_JSON_URL=\
   https://github.com/musantro/termux-python-standalone/releases/download/v0.1.0/python-downloads.json
 
 uv python list --only-downloads --show-urls
+uv python install 3.10
+uv python install 3.11
+uv python install 3.12
 uv python install 3.13
 uv python install 3.14
 ```
@@ -41,6 +44,9 @@ recommended interface for now.
 Pass the managed interpreter to the smoke test:
 
 ```sh
+./scripts/smoke-test.sh "$(uv python find 3.10)"
+./scripts/smoke-test.sh "$(uv python find 3.11)"
+./scripts/smoke-test.sh "$(uv python find 3.12)"
 ./scripts/smoke-test.sh "$(uv python find 3.13)"
 ./scripts/smoke-test.sh "$(uv python find 3.14)"
 ```
@@ -63,13 +69,19 @@ POSIX shell and Python for metadata validation:
 
 `versions.json` is the single source of truth. It contains the supported
 minor streams, their exact Termux recipe commits, and the pinned builder
-commit. The release workflow renders its matrix and its `uv` catalog directly
-from this manifest; no version list should be duplicated in a workflow.
+commit. The current set follows Python's active stable branches: 3.10, 3.11,
+3.12, 3.13 and 3.14. Python 3.15 is intentionally left out while it is a
+pre-release, and 3.9 is end-of-life. The release workflow renders its matrix,
+catalog and runtime smoke-test loop directly from this manifest; no version
+list should be duplicated in a workflow.
 The Termux builder image is pinned by digest in the same target block.
 
 The scheduled `Sync Termux Python recipes` workflow checks the current
 `termux/termux-packages` recipe and opens or updates a PR when an enabled stream
-changes. New minor streams are intentionally not enabled automatically.
+changes. Termux currently maintains one `python` package (the current 3.14
+stream), so the older active streams use their last reproducible Termux recipe
+commit until Termux publishes a newer recipe for them. New minor streams are
+intentionally not enabled automatically.
 
 After that PR is merged, the release workflow runs automatically, creates a
 date-based immutable tag such as `termux-python-20260811.1`, builds all
@@ -79,8 +91,9 @@ manual workflow dispatch can also be used for a manually named release.
 
 The build uses Docker and the digest-pinned official Termux package-builder
 image for a reproducible packaging environment. The release workflow also
-uses the `termux/termux-docker:aarch64` image plus QEMU to run both interpreters
-and `uv` in a Termux-like container. This catches most runtime regressions;
+uses the `termux/termux-docker:aarch64` image plus QEMU to run every supported
+interpreter and `uv` in a Termux-like container. This catches most runtime
+regressions;
 the real device smoke test remains useful because the container does not expose
 every Android system component.
 

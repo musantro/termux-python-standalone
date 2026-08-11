@@ -9,6 +9,27 @@
   },
   "streams": [
     {
+      "python": "3.10",
+      "version": "3.10.8",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "f1c878c5731537b287ac6b4c53b7b6a05df486dd",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.10",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "2cb1f4277481e4c6a74d39f057580c82adadf372",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.12",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "860d189e7280b1bc49a30c62a08d80509250193d",
+      "status": "supported"
+    },
+    {
       "python": "3.13",
       "version": "3.13.13",
       "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
