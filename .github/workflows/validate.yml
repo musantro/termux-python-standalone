@@ -18,8 +18,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+      - uses: astral-sh/setup-uv@v6
       - name: Validate catalog example
         run: ./scripts/validate-metadata.py metadata/python-downloads.example.json
+      - name: Validate version manifest
+        run: |
+          ./scripts/validate-versions.py versions.json
+          ./scripts/render-matrix.py versions.json
+      - name: Validate uv catalog selection
+        run: |
+          uv python list --only-downloads --show-urls \
+            --python-downloads-json-url "file://$GITHUB_WORKSPACE/metadata/python-downloads.example.json"
       - name: Validate shell scripts
         run: bash -n scripts/*.sh
       - name: Validate Python scripts

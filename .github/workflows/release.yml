@@ -2,35 +2,79 @@ name: Build and publish Termux Python
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - versions.json
     tags:
       - "v*"
+      - "termux-python-*"
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to build (for example v0.1.0)"
+        description: "Release tag to build (for example termux-python-20260811.1)"
         required: true
-        default: "v0.1.0"
+        default: "termux-python-manual"
 
 permissions:
   contents: write
+
+concurrency:
+  group: termux-python-release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: "1"
 
 jobs:
+  prepare:
+    name: Prepare manifest and release
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.manifest.outputs.matrix }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate manifest and render matrix
+        id: manifest
+        run: |
+          ./scripts/validate-versions.py versions.json
+          matrix=$(./scripts/render-matrix.py versions.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Select release tag
+        id: release
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_tag="$INPUT_RELEASE_TAG"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            release_tag="$GITHUB_REF_NAME"
+          else
+            release_tag="termux-python-$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          fi
+          if [[ ! "$release_tag" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|termux-python-[A-Za-z0-9._-]+)$ ]]; then
+            echo "invalid release tag: $release_tag" >&2
+            exit 1
+          fi
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "Selected release tag: $release_tag"
+
   build:
     name: CPython ${{ matrix.version }}
+    needs: prepare
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - version: "3.13.13"
-            termux_builder_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
-            termux_recipe_ref: "9a7a2fa5ad3b134acd975f6b13d142d02737d782"
-          - version: "3.14.6"
-            termux_builder_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
-            termux_recipe_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Check out mirror repository
         uses: actions/checkout@v4
@@ -47,7 +91,7 @@ jobs:
           git clone --filter=blob:none https://github.com/termux/termux-packages.git .
           git fetch --depth=1 origin "${{ matrix.termux_builder_ref }}"
           git checkout --detach "${{ matrix.termux_builder_ref }}"
-          docker pull ghcr.io/termux/package-builder:latest
+          docker pull "${{ matrix.termux_builder_image }}"
 
       - name: Build and package CPython
         env:
@@ -56,8 +100,19 @@ jobs:
           TERMUX_RECIPE_REF: ${{ matrix.termux_recipe_ref }}
           TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
           TERMUX_USE_DOCKER: "true"
+          TERMUX_BUILDER_IMAGE_NAME: ${{ matrix.termux_builder_image }}
           OUTPUT_DIR: ${{ github.workspace }}/dist
         run: ./scripts/build-standalone.sh
+
+      - name: Validate archive contents in the Termux container
+        env:
+          PYTHON_VERSION: ${{ matrix.version }}
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            "${{ matrix.termux_builder_image }}" \
+            bash -lc "tar -tzf dist/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz | grep -E '^install/bin/python${PYTHON_VERSION%.*}$'"
 
       - name: Validate archive contents
         env:
@@ -77,11 +132,18 @@ jobs:
 
   publish:
     name: Publish release
-    needs: build
-    runs-on: ubuntu-26.04
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
     steps:
       - name: Check out mirror repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -91,30 +153,61 @@ jobs:
           merge-multiple: true
 
       - name: Prepare release files and catalog
-        env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
           mkdir -p dist
           cp downloaded/cpython-*.tar.gz dist/
           cp downloaded/cpython-*.tar.gz.sha256 dist/
-          : > dist/python-downloads.json
-          printf '{}\n' > dist/python-downloads.json
-          python3 scripts/generate-catalog.py 3.13.13 "$RELEASE_TAG"
-          python3 scripts/generate-catalog.py 3.14.6 "$RELEASE_TAG"
-          python3 scripts/validate-metadata.py dist/python-downloads.json
-          sha256sum dist/* > dist/SHA256SUMS
+          python scripts/generate-catalog.py versions.json "$RELEASE_TAG" dist
+          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
+          sha256sum dist/cpython-*.tar.gz dist/cpython-*.tar.gz.sha256 dist/python-downloads.json \
+            > dist/SHA256SUMS
 
-      - name: Create or update GitHub release
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-            gh release create "$RELEASE_TAG" --title "Termux Python $RELEASE_TAG" \
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "Termux Python $RELEASE_TAG" \
               --notes "Standalone CPython builds for Termux/Android aarch64."
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
           gh release upload "$RELEASE_TAG" \
             dist/cpython-*.tar.gz \
             dist/cpython-*.tar.gz.sha256 \
             dist/python-downloads.json \
             dist/SHA256SUMS \
             --clobber
+
+      - name: Verify uploaded assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf verify
+          mkdir verify
+          gh release download "$RELEASE_TAG" \
+            --dir verify \
+            --pattern 'cpython-*.tar.gz' \
+            --pattern 'cpython-*.tar.gz.sha256' \
+            --pattern 'python-downloads.json'
+          for checksum in verify/cpython-*.tar.gz.sha256; do
+            archive="${checksum%.sha256}"
+            expected=$(awk '{print $1}' "$checksum")
+            actual=$(sha256sum "$archive" | awk '{print $1}')
+            [[ "$expected" == "$actual" ]] || {
+              echo "checksum mismatch for $archive" >&2
+              exit 1
+            }
+          done
+          ./scripts/validate-metadata.py verify/python-downloads.json versions.json
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest

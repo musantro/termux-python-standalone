@@ -114,5 +114,5 @@ done < <(find "$install_dir" -type f \( -perm /111 -o -name '*.so*' \) -print0)
 
 archive="$OUTPUT_DIR/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz"
 tar -C "$work_dir" -czf "$archive" install
-sha256sum "$archive" > "$archive.sha256"
+sha256sum "$archive" | sed "s#  $archive#  $(basename "$archive")#" > "$archive.sha256"
 printf 'Built %s\n' "$archive"

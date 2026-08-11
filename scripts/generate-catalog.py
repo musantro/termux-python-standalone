@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate uv's download catalog from release artifacts and checksums."""
+"""Generate uv's download catalog from the manifest and built archives."""
 
 from __future__ import annotations
 
@@ -18,37 +18,50 @@ def sha256(path: pathlib.Path) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} VERSION RELEASE_TAG", file=sys.stderr)
+    if len(sys.argv) != 4:
+        print(
+            f"usage: {sys.argv[0]} VERSIONS.json RELEASE_TAG DIST_DIR",
+            file=sys.stderr,
+        )
         return 2
-    version = sys.argv[1]
+
+    manifest_path = pathlib.Path(sys.argv[1])
     tag = sys.argv[2]
-    major, minor, patch = (int(part) for part in version.split("."))
-    root = pathlib.Path.cwd()
-    archive = root / "dist" / f"cpython-{version}-android-aarch64.tar.gz"
-    if not archive.is_file():
-        print(f"missing artifact: {archive}", file=sys.stderr)
-        return 1
-    entry = {
-        "name": "cpython",
-        "arch": {"family": "aarch64", "variant": None},
-        # The binary target is aarch64-linux-android. uv 0.11 currently detects
-        # the Termux host as Linux with no libc, so `none` is the compatibility
-        # value needed for the managed-download selector.
-        "os": "linux",
-        "libc": "none",
-        "major": major,
-        "minor": minor,
-        "patch": patch,
-        "url": f"https://github.com/musantro/termux-python-standalone/releases/download/{tag}/{archive.name}",
-        "sha256": sha256(archive),
-    }
-    key = f"cpython-{version}-linux-aarch64-none"
-    catalog_path = root / "dist" / "python-downloads.json"
-    existing = json.loads(catalog_path.read_text()) if catalog_path.exists() else {}
-    existing[key] = entry
-    catalog_path.write_text(json.dumps(dict(sorted(existing.items())), indent=2) + "\n")
-    print(f"added {key} to {catalog_path}")
+    dist = pathlib.Path(sys.argv[3])
+    manifest = json.loads(manifest_path.read_text())
+    target = manifest["target"]
+    catalog: dict[str, dict[str, object]] = {}
+
+    for stream in manifest["streams"]:
+        if stream["status"] != "supported":
+            continue
+        version = stream["version"]
+        major, minor, patch = (int(part) for part in version.split("."))
+        archive = dist / f"cpython-{version}-android-{target['arch']}.tar.gz"
+        if not archive.is_file():
+            print(f"missing artifact for {stream['python']}: {archive}", file=sys.stderr)
+            return 1
+        key = f"cpython-{version}-{target['uv_os']}-{target['arch']}-{target['uv_libc']}"
+        catalog[key] = {
+            "name": "cpython",
+            "arch": {"family": target["arch"], "variant": None},
+            # uv currently represents the Termux host as Linux/no-libc.
+            "os": target["uv_os"],
+            "libc": target["uv_libc"],
+            "major": major,
+            "minor": minor,
+            "patch": patch,
+            "build": f"termux-{stream['termux_recipe_ref'][:12]}",
+            "url": (
+                "https://github.com/musantro/termux-python-standalone/releases/"
+                f"download/{tag}/{archive.name}"
+            ),
+            "sha256": sha256(archive),
+        }
+
+    output = dist / "python-downloads.json"
+    output.write_text(json.dumps(dict(sorted(catalog.items())), indent=2) + "\n")
+    print(f"generated {len(catalog)} downloads in {output}")
     return 0
 
 

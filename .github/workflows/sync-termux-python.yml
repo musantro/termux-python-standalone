@@ -1,0 +1,55 @@
+name: Sync Termux Python recipes
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: termux-python-recipe-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Check Termux Python recipe
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check current Termux recipe
+        run: |
+          set -euo pipefail
+          recipe_ref=$(git ls-remote https://github.com/termux/termux-packages.git HEAD | awk '{print $1}')
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/termux/termux-packages/${recipe_ref}/packages/python/build.sh" \
+            --output /tmp/termux-python-build.sh
+          ./scripts/sync-termux-python.py versions.json \
+            --recipe-ref "$recipe_ref" \
+            --recipe-file /tmp/termux-python-build.sh
+          ./scripts/validate-versions.py versions.json
+
+      - name: Open or update synchronization PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/sync-termux-python
+          delete-branch: true
+          commit-message: "sync Termux Python recipe"
+          title: "chore: sync Termux Python recipe"
+          body: |
+            Automated update from the current `termux/termux-packages` Python recipe.
+
+            The normal validation and release workflows must pass before merging.
+          labels: automated,dependencies

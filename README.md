@@ -3,9 +3,9 @@
 Standalone CPython builds for Termux/Android, consumable by `uv`.
 
 The project targets the `aarch64-linux-android` ABI used by modern 64-bit
-Termux installations. GitHub Actions builds the Termux Python package for
-CPython 3.13.13 and 3.14.6, repackages it as a `uv` managed installation, and
-publishes both archives together with a signed-by-hash download catalog.
+Termux installations. GitHub Actions builds the supported CPython streams,
+repackages them as `uv` managed installations, and publishes the archives
+together with a checksum-verified download catalog.
 
 ## Current target
 
@@ -32,7 +32,9 @@ uv python install 3.14
 ```
 
 The release catalog is versioned so that an existing environment does not
-silently change when a later build is published.
+silently change when a later build is published. The `latest-release` pointer
+is reserved for a future convenience URL; immutable release URLs are the
+recommended interface for now.
 
 ## Validate an installation on Termux
 
@@ -53,12 +55,33 @@ builder and the pinned Termux package recipes. Local development only needs a
 POSIX shell and Python for metadata validation:
 
 ```sh
+./scripts/validate-versions.py versions.json
 ./scripts/validate-metadata.py metadata/python-downloads.example.json
 ```
 
-The build workflow runs on `ubuntu-24.04`, uses the Android NDK through the
-official Termux package build system, and publishes a release when a `v*` tag
-is pushed.
+## Maintaining supported versions
+
+`versions.json` is the single source of truth. It contains the supported
+minor streams, their exact Termux recipe commits, and the pinned builder
+commit. The release workflow renders its matrix and its `uv` catalog directly
+from this manifest; no version list should be duplicated in a workflow.
+The Termux builder image is pinned by digest in the same target block.
+
+The scheduled `Sync Termux Python recipes` workflow checks the current
+`termux/termux-packages` recipe and opens or updates a PR when an enabled stream
+changes. New minor streams are intentionally not enabled automatically.
+
+After that PR is merged, the release workflow runs automatically, creates a
+date-based immutable tag such as `termux-python-20260811.1`, builds all
+supported streams in parallel, creates a draft release, verifies uploaded
+checksums and catalog entries, and only then publishes it. A `vX.Y.Z` tag or a
+manual workflow dispatch can also be used for a manually named release.
+
+The build uses Docker and the digest-pinned official Termux package-builder
+image for a reproducible packaging environment. Docker validates the Android archive and
+Termux packaging tools, but an Ubuntu runner cannot execute Android/Bionic
+AArch64 binaries; runtime smoke tests still need a Termux/aarch64 device or a
+proper Android-compatible runner.
 
 ## License
 

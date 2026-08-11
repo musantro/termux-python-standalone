@@ -1,12 +1,26 @@
 {
-  "3.13.13": {
-    "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
-    "termux_recipe_ref": "9a7a2fa5ad3b134acd975f6b13d142d02737d782",
-    "termux_recipe_ref_note": "Termux python recipe for CPython 3.13.13"
+  "schema": 1,
+  "target": {
+    "arch": "aarch64",
+    "android_api": 24,
+    "uv_os": "linux",
+    "uv_libc": "none",
+    "termux_builder_image": "ghcr.io/termux/package-builder@sha256:4471cc862c570b15c3a0440668e80b37c9c1750d94fa88a0a4885d959ccf832e"
   },
-  "3.14.6": {
-    "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
-    "termux_recipe_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
-    "termux_recipe_ref_note": "Termux python recipe for CPython 3.14.6"
-  }
+  "streams": [
+    {
+      "python": "3.13",
+      "version": "3.13.13",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "9a7a2fa5ad3b134acd975f6b13d142d02737d782",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.6",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "status": "supported"
+    }
+  ]
 }
