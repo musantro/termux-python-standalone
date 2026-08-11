@@ -78,10 +78,11 @@ checksums and catalog entries, and only then publishes it. A `vX.Y.Z` tag or a
 manual workflow dispatch can also be used for a manually named release.
 
 The build uses Docker and the digest-pinned official Termux package-builder
-image for a reproducible packaging environment. Docker validates the Android archive and
-Termux packaging tools, but an Ubuntu runner cannot execute Android/Bionic
-AArch64 binaries; runtime smoke tests still need a Termux/aarch64 device or a
-proper Android-compatible runner.
+image for a reproducible packaging environment. The release workflow also
+uses the `termux/termux-docker:aarch64` image plus QEMU to run both interpreters
+and `uv` in a Termux-like container. This catches most runtime regressions;
+the real device smoke test remains useful because the container does not expose
+every Android system component.
 
 ## License
 

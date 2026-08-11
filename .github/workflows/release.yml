@@ -132,7 +132,7 @@ jobs:
 
   publish:
     name: Publish release
-    needs: [prepare, build]
+    needs: [prepare, build, runtime]
     runs-on: ubuntu-24.04
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
@@ -211,3 +211,60 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "$RELEASE_TAG" --draft=false --latest
+
+  runtime:
+    name: Runtime smoke test in Termux Docker
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out mirror repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          pattern: cpython-*-android-aarch64
+          merge-multiple: true
+
+      - name: Prepare local uv catalog
+        run: |
+          mkdir -p dist
+          cp downloaded/cpython-*.tar.gz dist/
+          python scripts/generate-catalog.py versions.json runtime-test dist
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("dist/python-downloads.json")
+          catalog = json.loads(path.read_text())
+          for entry in catalog.values():
+              entry["url"] = f"file:///repo/dist/{entry['url'].rsplit('/', 1)[-1]}"
+          path.write_text(json.dumps(catalog, indent=2) + "\n")
+          PY
+          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
+
+      - name: Enable aarch64 containers through QEMU
+        run: docker run --rm --privileged aptman/qus -s -- -p aarch64
+
+      - name: Install and run both Python versions in Termux Docker
+        run: |
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            --entrypoint /entrypoint_root.sh \
+            termux/termux-docker:aarch64 \
+            /data/data/com.termux/files/usr/bin/sh -lc '
+              set -e
+              apt update
+              apt install -y uv
+              export UV_PYTHON_DOWNLOADS_JSON_URL=file:///repo/dist/python-downloads.json
+              uv python install --reinstall 3.13 3.14
+              /repo/scripts/smoke-test.sh "$(uv python find 3.13)"
+              /repo/scripts/smoke-test.sh "$(uv python find 3.14)"
+            '
