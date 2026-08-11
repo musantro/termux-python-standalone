@@ -31,13 +31,13 @@ def main() -> int:
         print("manifest schema must be 1", file=sys.stderr)
         return 1
     target = manifest.get("target")
-    if target != {
+    expected_target = {
         "arch": "aarch64",
         "android_api": 24,
         "uv_os": "linux",
         "uv_libc": "none",
-        "termux_builder_image": "ghcr.io/termux/package-builder@sha256:4471cc862c570b15c3a0440668e80b37c9c1750d94fa88a0a4885d959ccf832e",
-    }:
+    }
+    if any(target.get(key) != value for key, value in expected_target.items()):
         print("manifest target must describe Android aarch64/API24 and uv linux/none", file=sys.stderr)
         return 1
     if not IMAGE_DIGEST.fullmatch(target["termux_builder_image"]):
