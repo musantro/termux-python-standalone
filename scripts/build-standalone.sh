@@ -108,7 +108,9 @@ while IFS= read -r -d '' elf; do
 			patchelf --print-rpath "$elf"
 		fi
 	fi
-done < <(find "$install_dir" -type f \( -perm -111 -o -name '*.so*' \) -print0)
+# Termux package payloads can use owner-only mode 700 for executables. Match
+# any execute bit so the main interpreter is included in the relocation pass.
+done < <(find "$install_dir" -type f \( -perm /111 -o -name '*.so*' \) -print0)
 
 archive="$OUTPUT_DIR/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz"
 tar -C "$work_dir" -czf "$archive" install
