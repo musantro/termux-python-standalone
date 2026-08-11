@@ -28,9 +28,11 @@ jobs:
       matrix:
         include:
           - version: "3.13.13"
-            termux_ref: "9a7a2fa5ad3b134acd975f6b13d142d02737d782"
+            termux_builder_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+            termux_recipe_ref: "9a7a2fa5ad3b134acd975f6b13d142d02737d782"
           - version: "3.14.6"
-            termux_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+            termux_builder_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+            termux_recipe_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
     steps:
       - name: Check out mirror repository
         uses: actions/checkout@v4
@@ -47,15 +49,16 @@ jobs:
           mkdir -p .termux-packages
           cd .termux-packages
           git clone --filter=blob:none https://github.com/termux/termux-packages.git .
-          git fetch --depth=1 origin "${{ matrix.termux_ref }}"
-          git checkout --detach "${{ matrix.termux_ref }}"
+          git fetch --depth=1 origin "${{ matrix.termux_builder_ref }}"
+          git checkout --detach "${{ matrix.termux_builder_ref }}"
           ./scripts/setup-ubuntu.sh
           ./scripts/setup-android-sdk.sh
 
       - name: Build and package CPython
         env:
           PYTHON_VERSION: ${{ matrix.version }}
-          TERMUX_PACKAGES_REF: ${{ matrix.termux_ref }}
+          TERMUX_BUILDER_REF: ${{ matrix.termux_builder_ref }}
+          TERMUX_RECIPE_REF: ${{ matrix.termux_recipe_ref }}
           TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
           OUTPUT_DIR: ${{ github.workspace }}/dist
         run: ./scripts/build-standalone.sh

@@ -5,7 +5,8 @@ set -euo pipefail
 # Termux python recipe and turns its .deb payload into uv's install_only layout.
 
 : "${PYTHON_VERSION:?set PYTHON_VERSION, e.g. 3.13.13}"
-: "${TERMUX_PACKAGES_REF:?set TERMUX_PACKAGES_REF to a pinned commit}"
+: "${TERMUX_BUILDER_REF:?set TERMUX_BUILDER_REF to a pinned build-system commit}"
+: "${TERMUX_RECIPE_REF:?set TERMUX_RECIPE_REF to a pinned Python recipe commit}"
 : "${OUTPUT_DIR:?set OUTPUT_DIR to the artifact directory}"
 
 repo_dir=${TERMUX_PACKAGES_DIR:-"$PWD/.termux-packages"}
@@ -14,8 +15,14 @@ mkdir -p "$OUTPUT_DIR"
 if [[ ! -d "$repo_dir/.git" ]]; then
 	git clone --filter=blob:none https://github.com/termux/termux-packages.git "$repo_dir"
 fi
-git -C "$repo_dir" fetch --depth=1 origin "$TERMUX_PACKAGES_REF"
-git -C "$repo_dir" checkout --detach "$TERMUX_PACKAGES_REF"
+git -C "$repo_dir" fetch --depth=1 origin "$TERMUX_BUILDER_REF" "$TERMUX_RECIPE_REF"
+git -C "$repo_dir" checkout --detach "$TERMUX_BUILDER_REF"
+
+# Keep the current build infrastructure (including its Ubuntu/NDK setup), but
+# use the exact Python recipe and patches from the requested version's commit.
+rm -rf "$repo_dir/packages/python"
+git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
+	| tar -x -C "$repo_dir"
 
 cd "$repo_dir"
 
