@@ -29,8 +29,13 @@ git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
 # names, so restore the current compatibility patch alongside the historical
 # recipe when necessary.
 if [[ ! -f "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch" ]]; then
-	git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
-		> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+	if git -C "$repo_dir" cat-file -e "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" 2>/dev/null; then
+		git -C "$repo_dir" show "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" \
+			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+	else
+		git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
+			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+	fi
 fi
 
 cd "$repo_dir"
