@@ -28,7 +28,12 @@ cd "$repo_dir"
 
 # The package recipe already contains the Android-specific patches, configure
 # probes, and host-build Python setup maintained by Termux.
-./build-package.sh -a aarch64 -I -f python
+if [[ "${TERMUX_USE_DOCKER:-false}" == "true" ]]; then
+	TERMUX_BUILDER_IMAGE_NAME="${TERMUX_BUILDER_IMAGE_NAME:-ghcr.io/termux/package-builder:latest}" \
+		./scripts/run-docker.sh ./build-package.sh -a aarch64 -I -f python
+else
+	./build-package.sh -a aarch64 -I -f python
+fi
 
 deb=$(find output -maxdepth 1 -type f -name 'python_*.deb' -print -quit)
 if [[ -z "$deb" ]]; then

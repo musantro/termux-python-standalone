@@ -20,8 +20,6 @@ env:
 jobs:
   build:
     name: CPython ${{ matrix.version }}
-    # Termux's current builder recipe requires autoconf/LLVM from Ubuntu
-    # Resolute; the 3.14 recipe does not build on Ubuntu 24.04.
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -37,22 +35,19 @@ jobs:
       - name: Check out mirror repository
         uses: actions/checkout@v4
 
-      - name: Install build prerequisites
+      - name: Install packaging prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            autoconf automake clang dpkg-dev file git lld make patchelf \
-            pkg-config python3 rsync tar unzip wget xz-utils
+          sudo apt-get install -y dpkg-dev file patchelf
 
-      - name: Set up the Termux build environment
+      - name: Prepare the Termux build checkout
         run: |
           mkdir -p .termux-packages
           cd .termux-packages
           git clone --filter=blob:none https://github.com/termux/termux-packages.git .
           git fetch --depth=1 origin "${{ matrix.termux_builder_ref }}"
           git checkout --detach "${{ matrix.termux_builder_ref }}"
-          ./scripts/setup-ubuntu.sh
-          ./scripts/setup-android-sdk.sh
+          docker pull ghcr.io/termux/package-builder:latest
 
       - name: Build and package CPython
         env:
@@ -60,6 +55,7 @@ jobs:
           TERMUX_BUILDER_REF: ${{ matrix.termux_builder_ref }}
           TERMUX_RECIPE_REF: ${{ matrix.termux_recipe_ref }}
           TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
+          TERMUX_USE_DOCKER: "true"
           OUTPUT_DIR: ${{ github.workspace }}/dist
         run: ./scripts/build-standalone.sh
 
