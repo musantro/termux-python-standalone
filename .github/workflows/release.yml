@@ -1,0 +1,121 @@
+name: Build and publish Termux Python
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to build (for example v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  build:
+    name: CPython ${{ matrix.version }}
+    # Termux's current builder recipe requires autoconf/LLVM from Ubuntu
+    # Resolute; the 3.14 recipe does not build on Ubuntu 24.04.
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "3.13.13"
+            termux_ref: "9a7a2fa5ad3b134acd975f6b13d142d02737d782"
+          - version: "3.14.6"
+            termux_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+    steps:
+      - name: Check out mirror repository
+        uses: actions/checkout@v4
+
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf automake clang dpkg-dev file git lld make patchelf \
+            pkg-config python3 rsync tar unzip wget xz-utils
+
+      - name: Set up the Termux build environment
+        run: |
+          mkdir -p .termux-packages
+          cd .termux-packages
+          git clone --filter=blob:none https://github.com/termux/termux-packages.git .
+          git fetch --depth=1 origin "${{ matrix.termux_ref }}"
+          git checkout --detach "${{ matrix.termux_ref }}"
+          ./scripts/setup-ubuntu.sh
+          ./scripts/setup-android-sdk.sh
+
+      - name: Build and package CPython
+        env:
+          PYTHON_VERSION: ${{ matrix.version }}
+          TERMUX_PACKAGES_REF: ${{ matrix.termux_ref }}
+          TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
+          OUTPUT_DIR: ${{ github.workspace }}/dist
+        run: ./scripts/build-standalone.sh
+
+      - name: Validate archive contents
+        env:
+          PYTHON_VERSION: ${{ matrix.version }}
+        run: |
+          tar -tzf "dist/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz" \
+            | grep -E "^install/bin/python${PYTHON_VERSION%.*}$"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpython-${{ matrix.version }}-android-aarch64
+          path: |
+            dist/cpython-${{ matrix.version }}-android-aarch64.tar.gz
+            dist/cpython-${{ matrix.version }}-android-aarch64.tar.gz.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Check out mirror repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          pattern: cpython-*-android-aarch64
+          merge-multiple: true
+
+      - name: Prepare release files and catalog
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          mkdir -p dist
+          cp downloaded/cpython-*.tar.gz dist/
+          cp downloaded/cpython-*.tar.gz.sha256 dist/
+          : > dist/python-downloads.json
+          printf '{}\n' > dist/python-downloads.json
+          python3 scripts/generate-catalog.py 3.13.13 "$RELEASE_TAG"
+          python3 scripts/generate-catalog.py 3.14.6 "$RELEASE_TAG"
+          python3 scripts/validate-metadata.py dist/python-downloads.json
+          sha256sum dist/* > dist/SHA256SUMS
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --title "Termux Python $RELEASE_TAG" \
+              --notes "Standalone CPython builds for Termux/Android aarch64."
+          gh release upload "$RELEASE_TAG" \
+            dist/cpython-*.tar.gz \
+            dist/cpython-*.tar.gz.sha256 \
+            dist/python-downloads.json \
+            dist/SHA256SUMS \
+            --clobber

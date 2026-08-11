@@ -1,0 +1,28 @@
+{
+  "cpython-3.13.13-linux-aarch64-none": {
+    "name": "cpython",
+    "arch": {
+      "family": "aarch64",
+      "variant": null
+    },
+    "os": "linux",
+    "libc": "none",
+    "major": 3,
+    "minor": 13,
+    "patch": 13,
+    "url": "https://github.com/musantro/termux-python-standalone/releases/download/v0.1.0/cpython-3.13.13-android-aarch64.tar.gz"
+  },
+  "cpython-3.14.6-linux-aarch64-none": {
+    "name": "cpython",
+    "arch": {
+      "family": "aarch64",
+      "variant": null
+    },
+    "os": "linux",
+    "libc": "none",
+    "major": 3,
+    "minor": 14,
+    "patch": 6,
+    "url": "https://github.com/musantro/termux-python-standalone/releases/download/v0.1.0/cpython-3.14.6-android-aarch64.tar.gz"
+  }
+}

@@ -1,0 +1,4 @@
+.termux-packages/
+dist/
+*.pyc
+__pycache__/

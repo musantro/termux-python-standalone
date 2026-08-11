@@ -1,0 +1,10 @@
+{
+  "3.13.13": {
+    "termux_packages_ref": "9a7a2fa5ad3b134acd975f6b13d142d02737d782",
+    "termux_packages_ref_note": "Termux python recipe for CPython 3.13.13"
+  },
+  "3.14.6": {
+    "termux_packages_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+    "termux_packages_ref_note": "Termux python recipe for CPython 3.14.6"
+  }
+}
