@@ -1,0 +1,26 @@
+name: Validate metadata and scripts
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate catalog example
+        run: ./scripts/validate-metadata.py metadata/python-downloads.example.json
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh
+      - name: Validate Python scripts
+        run: python -m py_compile scripts/*.py
