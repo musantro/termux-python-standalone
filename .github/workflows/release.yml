@@ -250,7 +250,7 @@ jobs:
           ./scripts/validate-metadata.py dist/python-downloads.json versions.json
 
       - name: Enable aarch64 containers through QEMU
-        run: docker run --rm --privileged aptman/qus -s -- -p aarch64
+        run: docker run --rm --privileged aptman/qus@sha256:9511e9363ce42fd18b9448151b1e0f6323eed396c5279295080375e01cc1b626 -s -- -p aarch64
 
       - name: Install and run both Python versions in Termux Docker
         run: |
@@ -258,7 +258,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/repo" \
             -w /repo \
             --entrypoint /entrypoint_root.sh \
-            termux/termux-docker:aarch64 \
+            termux/termux-docker@sha256:a8391ea57d799e10d0f3cf5ed41f32caf880c150275bda910233a5438bae0042 \
             /data/data/com.termux/files/usr/bin/sh -lc '
               set -e
               apt update
