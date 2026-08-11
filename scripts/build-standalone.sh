@@ -24,6 +24,15 @@ rm -rf "$repo_dir/packages/python"
 git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
 	| tar -x -C "$repo_dir"
 
+# The current build infrastructure uses this patch name while building the
+# minimal host Python. Older Python recipes used a different sequence of patch
+# names, so restore the current compatibility patch alongside the historical
+# recipe when necessary.
+if [[ ! -f "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch" ]]; then
+	git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
+		> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+fi
+
 cd "$repo_dir"
 
 # The package recipe already contains the Android-specific patches, configure
