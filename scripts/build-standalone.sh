@@ -32,6 +32,9 @@ if [[ ! -f "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch" ]
 	if git -C "$repo_dir" cat-file -e "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" 2>/dev/null; then
 		git -C "$repo_dir" show "$TERMUX_RECIPE_REF:packages/python/0009-fix-ctypes-util-find_library.patch" \
 			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+		# The historical recipe would otherwise apply this same patch again
+		# under its original name during the generic package patch loop.
+		rm -f "$repo_dir/packages/python/0009-fix-ctypes-util-find_library.patch"
 	else
 		git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
 			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
