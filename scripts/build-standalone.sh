@@ -56,6 +56,31 @@ cp -a "$termux_prefix/." "$install_dir/"
 # libpython itself is included in the package payload.
 rm -rf "$install_dir/share/man" "$install_dir/share/doc" "$install_dir/var"
 
+# Termux recipes normally encode the system prefix in the ELF RUNPATH. A uv
+# managed installation lives elsewhere, so prefer the archive's own libpython
+# and extension modules while retaining the official Termux prefix as a
+# fallback for shared runtime dependencies such as sqlite and OpenSSL.
+while IFS= read -r -d '' elf; do
+	relative=${elf#"$install_dir/"}
+	case "$relative" in
+		bin/*)
+			rpath='$ORIGIN/../lib:/data/data/com.termux/files/usr/lib'
+			;;
+		lib/python*/lib-dynload/*)
+			rpath='$ORIGIN/../..:/data/data/com.termux/files/usr/lib'
+			;;
+		lib/*.so*)
+			rpath='$ORIGIN:/data/data/com.termux/files/usr/lib'
+			;;
+		*)
+			continue
+			;;
+	esac
+	if file -b "$elf" | grep -q '^ELF '; then
+		patchelf --set-rpath "$rpath" "$elf"
+	fi
+done < <(find "$install_dir" -type f \( -perm -111 -o -name '*.so*' \) -print0)
+
 archive="$OUTPUT_DIR/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz"
 tar -C "$work_dir" -czf "$archive" install
 sha256sum "$archive" > "$archive.sha256"
