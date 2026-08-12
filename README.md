@@ -34,10 +34,45 @@ uv python install 3.13
 uv python install 3.14
 ```
 
+On the target Termux device, the repository includes a helper that checks the
+device ABI/API and exports the catalog variables in the current shell:
+
+```sh
+source ./scripts/setup-uv-termux.sh
+uv python list --only-downloads --show-urls
+uv python install 3.14
+```
+
+If you only want to configure an existing Termux installation, run this
+one-liner. It downloads the interactive installer from this repository:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/musantro/termux-python-standalone/main/scripts/install-uv-termux.sh | bash
+```
+
+The installer shows the catalog URL, the startup file it selected, and the
+exact managed block before asking for authorization. It only edits that block;
+it does not install packages or Python. At the end it reports whether a file
+was created, updated, or left unchanged. Open a new shell afterwards, or run
+the `source` command printed by the installer, then check the catalog with
+`uv python list --only-downloads --show-urls`.
+
+The helper uses the mutable `latest` release pointer by default. To keep an
+environment reproducible, source it with an immutable release tag instead:
+
+```sh
+source ./scripts/setup-uv-termux.sh termux-python-20260811.1
+```
+
+The only required setting is `UV_PYTHON_DOWNLOADS_JSON_URL`; the helper also
+sets `UV_PYTHON_DOWNLOADS=automatic` so a previous `never` setting does not
+silently disable downloads. Add the `source` command to the shell startup file
+if it should be applied to every new Termux session.
+
 The release catalog is versioned so that an existing environment does not
-silently change when a later build is published. The `latest-release` pointer
-is reserved for a future convenience URL; immutable release URLs are the
-recommended interface for now.
+silently change when a later build is published. The `latest` release pointer
+is convenient but mutable; immutable release URLs are recommended when exact
+reproducibility matters.
 
 ## Validate an installation on Termux
 
