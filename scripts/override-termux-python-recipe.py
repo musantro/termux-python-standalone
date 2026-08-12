@@ -145,20 +145,25 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
     The old ``setup.py`` extension builder does not carry the recipe's
     ``CPPFLAGS`` into its per-module compiler commands.  The modern CPython
     build system does, which is why the same Termux dependency set works for
-    3.12 and newer.  Put the Termux prefix include directory in ``CFLAGS``
-    for the two historical streams so optional modules such as ``_bz2`` and
-    ``_ssl`` see the headers extracted by the builder.  Their old extension
-    linker also omits ``libm`` from modules that call ``log``.  ``LDFLAGS`` is
-    carried into the builder's generated ``LDSHARED`` assignment, unlike a
-    recipe-local ``LDSHARED`` shell variable.
+    3.12 and newer.  Put the Termux prefix include and library directories in
+    the configure variables used by the historical builder so optional
+    modules such as ``_bz2``, ``_sqlite3`` and ``_ssl`` see the dependencies
+    extracted by Termux.  Their old extension linker also omits ``libm`` from
+    modules that call ``log``.  ``LDFLAGS`` is carried into the builder's
+    generated ``LDSHARED`` assignment, unlike a recipe-local ``LDSHARED``
+    shell variable.
     """
     parsed = parse_version(version)
     if parsed[:2] not in {(3, 10), (3, 11)}:
         return
     text = recipe.read_text()
     marker = '\tCFLAGS="${CFLAGS/-Oz/-O3}"'
-    include_flag = 'CFLAGS+=" -I$TERMUX_PREFIX/include"'
-    if include_flag in text:
+    cppflags_flag = 'CPPFLAGS+=" -I$TERMUX_PREFIX/include"'
+    cflags_flag = 'CFLAGS+=" -I$TERMUX_PREFIX/include"'
+    ldflags_flag = (
+        'LDFLAGS+=" -L$TERMUX_PREFIX/lib -Wl,--no-as-needed -lm -Wl,--as-needed"'
+    )
+    if cppflags_flag in text and cflags_flag in text and ldflags_flag in text:
         return
     if marker not in text:
         raise ValueError(f"{recipe}: cannot locate historical CFLAGS hook")
@@ -166,9 +171,10 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
         marker,
         marker
         + "\n\t# CPython <=3.11 does not propagate CPPFLAGS to extension builds.\n"
-        + f"\t{include_flag}\n"
+        + f"\t{cppflags_flag}\n"
+        + f"\t{cflags_flag}\n"
         + "\t# Keep math symbols available to extension modules such as _statistics.\n"
-        + '\tLDFLAGS+=" -Wl,--no-as-needed -lm -Wl,--as-needed"',
+        + f"\t{ldflags_flag}",
         1,
     )
     recipe.write_text(text)

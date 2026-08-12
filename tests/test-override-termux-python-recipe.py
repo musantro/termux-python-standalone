@@ -73,9 +73,12 @@ class LegacyRecipeTests(unittest.TestCase):
                 MODULE.ensure_legacy_prefix_include(recipe, version)
                 MODULE.ensure_legacy_prefix_include(recipe, version)
                 text = recipe.read_text()
+                self.assertEqual(text.count('CPPFLAGS+=" -I$TERMUX_PREFIX/include"'), 1)
                 self.assertEqual(text.count('CFLAGS+=" -I$TERMUX_PREFIX/include"'), 1)
                 self.assertEqual(
-                    text.count('LDFLAGS+=" -Wl,--no-as-needed -lm -Wl,--as-needed"'),
+                    text.count(
+                        'LDFLAGS+=" -L$TERMUX_PREFIX/lib -Wl,--no-as-needed -lm -Wl,--as-needed"'
+                    ),
                     1,
                 )
 
