@@ -41,6 +41,11 @@ termux_step_post_get_source() {
 
 
 class PrepareRecipeTests(unittest.TestCase):
+    def test_guard_covers_both_upstreamed_transformations(self) -> None:
+        self.assertIn(r'LIBPYTHON="\$(BLDLIBRARY)"', MODULE.GUARD)
+        self.assertIn(r'\$(MODULE_LDFLAGS_SHARED)', MODULE.GUARD)
+        self.assertIn(r'MODULE_LDFLAGS_SHARED=$(if $(LIBPYTHON),$(BLDLIBRARY))', MODULE.GUARD)
+
     def test_inserts_guard_in_post_source_hook_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "build.sh"
@@ -49,7 +54,6 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertTrue(MODULE.prepare(path))
             prepared = path.read_text()
             self.assertIn(MODULE.GUARD_MARKER, prepared)
-            self.assertIn("LIBPYTHON=\"\\$(BLDLIBRARY)\"", prepared)
             self.assertLess(
                 prepared.index(MODULE.GUARD_MARKER),
                 prepared.index("termux_step_pre_configure()"),
@@ -57,7 +61,7 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertFalse(MODULE.prepare(path))
             self.assertEqual(prepared, path.read_text())
 
-    def test_creates_post_source_hook_when_missing(self) -> None:
+    def test_rejects_recipe_without_post_source_hook(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "build.sh"
             path.write_text(RECIPE_WITHOUT_POST_SOURCE)
@@ -67,7 +71,7 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertIn(MODULE.GUARD_MARKER, prepared)
             self.assertIn("termux_step_pre_configure() {\n\ttrue", prepared)
 
-    def test_uses_post_source_hook_even_when_defined_later(self) -> None:
+    def test_uses_late_post_source_hook(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "build.sh"
             path.write_text(RECIPE_WITH_LATE_POST_SOURCE)
@@ -88,4 +92,4 @@ class PrepareRecipeTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-	 unittest.main()
+    unittest.main()
