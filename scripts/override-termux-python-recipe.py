@@ -148,10 +148,9 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
     3.12 and newer.  Put the Termux prefix include directory in ``CFLAGS``
     for the two historical streams so optional modules such as ``_bz2`` and
     ``_ssl`` see the headers extracted by the builder.  Their old extension
-    linker also omits ``libm`` from modules that call ``log``.  The Termux
-    builder later supplies ``LDSHARED`` as an environment assignment, so the
-    generated Makefile is amended after configure rather than relying on a
-    shell variable from the recipe hook.
+    linker also omits ``libm`` from modules that call ``log``.  ``LDFLAGS`` is
+    carried into the builder's generated ``LDSHARED`` assignment, unlike a
+    recipe-local ``LDSHARED`` shell variable.
     """
     parsed = parse_version(version)
     if parsed[:2] not in {(3, 10), (3, 11)}:
@@ -169,10 +168,7 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
         + "\n\t# CPython <=3.11 does not propagate CPPFLAGS to extension builds.\n"
         + f"\t{include_flag}\n"
         + "\t# Keep math symbols available to extension modules such as _statistics.\n"
-        + '\ttermux_step_post_configure() {\n'
-        + '\t\tmakefile="$TERMUX_PKG_BUILDDIR/Makefile"\n'
-        + '\t\tsed -i \'s#^\\(LDSHARED=.*\\)$#\\1 -Wl,--no-as-needed -lm -Wl,--as-needed#\' "$makefile"\n'
-        + '\t}',
+        + '\tLDFLAGS+=" -Wl,--no-as-needed -lm -Wl,--as-needed"',
         1,
     )
     recipe.write_text(text)

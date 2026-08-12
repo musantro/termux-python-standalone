@@ -74,8 +74,10 @@ class LegacyRecipeTests(unittest.TestCase):
                 MODULE.ensure_legacy_prefix_include(recipe, version)
                 text = recipe.read_text()
                 self.assertEqual(text.count('CFLAGS+=" -I$TERMUX_PREFIX/include"'), 1)
-                self.assertEqual(text.count("termux_step_post_configure() {"), 1)
-                self.assertIn("--no-as-needed -lm", text)
+                self.assertEqual(
+                    text.count('LDFLAGS+=" -Wl,--no-as-needed -lm -Wl,--as-needed"'),
+                    1,
+                )
 
     def test_modern_recipes_keep_their_existing_include_handling(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
