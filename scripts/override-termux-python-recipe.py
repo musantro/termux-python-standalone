@@ -13,6 +13,7 @@ SHA_ASSIGN_RE = re.compile(r"^TERMUX_PKG_SHA256\s*=\s*(.*)$")
 SHA_VALUE_RE = re.compile(r"^(\s*)([0-9a-fA-F]{64})(\s*)$")
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 PRE_CONFIGURE_RE = re.compile(r"^termux_step_pre_configure\(\)\s*\{\s*$")
+VERSION_RE_FULL = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
 def ensure_build_python_hook(text: str, path: pathlib.Path) -> str:
@@ -100,6 +101,68 @@ PY
     return text.rstrip() + "\n" + hook
 
 
+def parse_version(version: str) -> tuple[int, int, int]:
+    match = VERSION_RE_FULL.fullmatch(version)
+    if not match:
+        raise ValueError(f"invalid Python version: {version}")
+    return tuple(int(part) for part in match.groups())
+
+
+def legacy_patch_exceptions(version: str) -> tuple[str, ...]:
+    """Return patches that cannot match the specified historical source."""
+    parsed = parse_version(version)
+    # Python 3.11.4 regenerated configure with a different Autoconf layout,
+    # so the hard-link patch has no target. The equivalent cache variable is
+    # injected by apply_legacy_recipe_compatibility below.
+    if parsed == (3, 11, 4):
+        return ("0008-do-not-use-link.patch",)
+    return ()
+
+
+def adapt_xattr_patch(patch: pathlib.Path, version: str) -> None:
+    """Adapt Termux's xattr patch to CPython's historical source guards."""
+    parsed = parse_version(version)
+    if not ((3, 11, 0) <= parsed <= (3, 11, 4)):
+        return
+    text = patch.read_text()
+    if parsed <= (3, 11, 3):
+        old = "#if defined(HAVE_SYS_XATTR_H) && defined(__GLIBC__) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)"
+    else:
+        old = "#if defined(HAVE_SYS_XATTR_H) && defined(__linux__) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)"
+    new = f"{old} && !defined(__ANDROID__)"
+    current = "#if defined(HAVE_SYS_XATTR_H) && defined(HAVE_LINUX_LIMITS_H) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)"
+    if f"-{old}\n+{new}" in text:
+        return
+    hunk = f"-{current}\n+{current} && !defined(__ANDROID__)"
+    if hunk not in text:
+        raise ValueError(f"{patch}: unknown CPython xattr guard for Python {version}")
+    patch.write_text(text.replace(hunk, f"-{old}\n+{new}", 1))
+
+
+def apply_legacy_recipe_compatibility(recipe: pathlib.Path, version: str) -> None:
+    """Adapt historical patches and preserve equivalent configure probes."""
+    xattr_patch = recipe.with_name("0006-do-not-use-xattr.patch")
+    if xattr_patch.exists():
+        adapt_xattr_patch(xattr_patch, version)
+    for filename in legacy_patch_exceptions(version):
+        patch = recipe.with_name(filename)
+        if patch.exists():
+            patch.unlink()
+            print(f"Skipping incompatible historical patch {filename} for Python {version}")
+
+    # 0008 disables HAVE_LINK. Its hunk cannot match 3.11.4's regenerated
+    # configure, so carry the same result through Autoconf's cache variable.
+    if parse_version(version) == (3, 11, 4):
+        text = recipe.read_text()
+        cache_arg = 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" ac_cv_func_link=no"'
+        if cache_arg not in text:
+            marker = 'TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" ac_cv_func_linkat=no"'
+            if marker not in text:
+                raise ValueError(f"{recipe}: cannot add the link probe override")
+            text = text.replace(marker, f"{marker}\n{cache_arg}", 1)
+            recipe.write_text(text)
+
+
 def main() -> int:
     if len(sys.argv) != 4:
         print(f"usage: {sys.argv[0]} RECIPE.sh VERSION SOURCE_SHA256", file=sys.stderr)
@@ -159,6 +222,11 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 1
     path.write_text(recipe)
+    try:
+        apply_legacy_recipe_compatibility(path, version)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
     return 0
 
 

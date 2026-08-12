@@ -35,3 +35,5 @@ jobs:
         run: python -m py_compile scripts/*.py
       - name: Test recipe preparation
         run: python scripts/test-prepare-termux-python-recipe.py
+      - name: Test recipe compatibility
+        run: python tests/test-override-termux-python-recipe.py -v
