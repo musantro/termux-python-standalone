@@ -30,6 +30,15 @@ RECIPE_WITHOUT_POST_SOURCE = """termux_step_pre_configure() {
 }
 """
 
+RECIPE_WITH_LATE_POST_SOURCE = """termux_step_pre_configure() {
+\ttrue
+}
+
+termux_step_post_get_source() {
+\ttrue
+}
+"""
+
 
 class PrepareRecipeTests(unittest.TestCase):
     def test_inserts_guard_in_post_source_hook_once(self) -> None:
@@ -56,6 +65,18 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertIn("termux_step_post_get_source() {", prepared)
             self.assertIn(MODULE.GUARD_MARKER, prepared)
             self.assertIn("termux_step_pre_configure() {\n\ttrue", prepared)
+
+    def test_uses_post_source_hook_even_when_defined_later(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "build.sh"
+            path.write_text(RECIPE_WITH_LATE_POST_SOURCE)
+            self.assertTrue(MODULE.prepare(path))
+            prepared = path.read_text()
+            self.assertEqual(prepared.count(MODULE.GUARD_MARKER), 1)
+            self.assertLess(
+                prepared.index(MODULE.GUARD_MARKER),
+                prepared.index("\n\ttrue\n}", prepared.index("termux_step_post_get_source")),
+            )
 
     def test_rejects_recipe_without_configure_hook(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

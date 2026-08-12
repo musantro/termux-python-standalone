@@ -11,12 +11,13 @@ hook for older recipes that do not define one.
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 
 GUARD_MARKER = "# termux-python-standalone: skip upstreamed CPython patches"
-HOOK_MARKER = "\n}\n\ntermux_step_pre_configure() {"
 PRE_CONFIGURE_MARKER = "termux_step_pre_configure() {"
+POST_SOURCE_OPEN_RE = re.compile(r"termux_step_post_get_source\(\) \{\n")
 
 GUARD = r'''
 	# termux-python-standalone: skip upstreamed CPython patches
@@ -43,10 +44,14 @@ def prepare(path: pathlib.Path) -> bool:
 	text = path.read_text()
 	if GUARD_MARKER in text:
 		return False
-	if HOOK_MARKER in text:
+	if POST_SOURCE_OPEN_RE.search(text):
 		# Keep the guard inside the existing post-source hook. It runs after
 		# CPython has been extracted, but before recipe patches are applied.
-		text = text.replace(HOOK_MARKER, "\n" + GUARD + HOOK_MARKER, 1)
+		text = POST_SOURCE_OPEN_RE.sub(
+			lambda match: match.group(0) + GUARD,
+			text,
+			count=1,
+		)
 	elif PRE_CONFIGURE_MARKER in text:
 		# Older recipes have no post-source hook. Create one before the
 		# configure hook, preserving the latter unchanged.
