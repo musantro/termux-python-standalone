@@ -12,6 +12,35 @@ VERSION_RE = re.compile(r"^TERMUX_PKG_VERSION\s*=.*$")
 SHA_ASSIGN_RE = re.compile(r"^TERMUX_PKG_SHA256\s*=\s*(.*)$")
 SHA_VALUE_RE = re.compile(r"^(\s*)([0-9a-fA-F]{64})(\s*)$")
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+PRE_CONFIGURE_RE = re.compile(r"^termux_step_pre_configure\(\)\s*\{\s*$")
+
+
+def ensure_build_python_hook(text: str, path: pathlib.Path) -> str:
+    """Ensure cross-build recipes prepare a matching host Python.
+
+    Recent Termux Python recipes call ``termux_setup_build_python`` from their
+    pre-configure hook.  Older pinned recipes only pass ``--with-build-python``
+    to configure, which leaves that binary missing in the builder container.
+    The recipe is copied into a temporary checkout before this script runs, so
+    adding the hook here keeps the remote recipe immutable while making the
+    behavior consistent across all supported Python streams.
+    """
+    if re.search(r"^\s*termux_setup_build_python\s*$", text, re.MULTILINE):
+        return text
+
+    lines = text.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if PRE_CONFIGURE_RE.match(line):
+            ending = "\n" if line.endswith("\n") else ""
+            indent = "\t" if line[:1] != " " else "    "
+            lines.insert(
+                index + 1,
+                f"{indent}# Build the matching host Python before cross-configuring.\n"
+                f"{indent}termux_setup_build_python{ending}",
+            )
+            return "".join(lines)
+
+    raise ValueError(f"{path}: no termux_step_pre_configure function")
 
 
 def main() -> int:
@@ -66,7 +95,12 @@ def main() -> int:
     if not sha_replaced:
         print(f"{path}: no TERMUX_PKG_SHA256 assignment", file=sys.stderr)
         return 1
-    path.write_text("".join(output))
+    try:
+        recipe = ensure_build_python_hook("".join(output), path)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
+    path.write_text(recipe)
     return 0
 
 
