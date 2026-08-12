@@ -106,8 +106,9 @@ POSIX shell and Python for metadata validation:
 
 - `streams` defines the Android adaptation profile for each supported minor
   branch and pins the Termux builder/recipe commits;
-- `releases` contains every final Python Foundation patch release selected for
-  those branches, including its official source SHA-256.
+- `releases` contains exactly one final Python Foundation patch release per
+  supported branch: the newest patch currently available, including its
+  official source SHA-256.
 
 The current set follows Python's active stable branches: 3.10, 3.11, 3.12,
 3.13 and 3.14. Python 3.15 is left out while it is a pre-release, and 3.9 is
@@ -116,13 +117,14 @@ from this manifest; no version list is duplicated in a workflow.
 The Termux builder image is pinned by digest in the same target block.
 
 The scheduled `Sync Python Foundation releases` workflow reads Python's release
-cycle metadata and the official source archive index. It adds newly published
-final patch releases, computes a SHA-256 when the historical release page does
-not provide one, and opens or updates a PR. Existing releases are never removed,
-so old immutable catalog entries remain reproducible. Termux does not need to
-publish a package for each patch: its recipe is used as the Android patch
-profile, while the pinned builder compiles the requested Python Foundation
-source version directly.
+cycle metadata and the official source archive index. It selects only the newest
+final patch per supported branch, computes a SHA-256 when the release page does
+not provide one, and opens or updates a PR. When a new patch appears, the old
+entry is removed from the active manifest, so the next release builds only the
+new patch; already published GitHub releases remain immutable. Termux does not
+need to publish a package for each patch: its recipe is used as the Android
+patch profile, while the pinned builder compiles the requested Python
+Foundation source version directly.
 
 After that PR is merged, the release workflow runs automatically, creates a
 date-based immutable tag such as `termux-python-20260811.1`, builds all

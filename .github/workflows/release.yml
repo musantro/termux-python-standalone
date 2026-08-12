@@ -21,7 +21,9 @@ permissions:
 
 concurrency:
   group: termux-python-release-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer manifest supersedes an older queued/building release. Do not
+  # spend runners or publish a catalog for a patch that is no longer current.
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"

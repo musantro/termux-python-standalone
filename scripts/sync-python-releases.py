@@ -154,9 +154,22 @@ def main() -> int:
             continue
         candidates.append(version)
 
+    # The catalog intentionally contains one release per supported minor
+    # stream: the newest final patch available from the Python Foundation.
+    # Selecting before resolving checksums avoids downloading or inspecting
+    # historical archives on every scheduled sync.
+    latest_candidates: dict[str, str] = {}
+    for version in candidates:
+        minor = ".".join(version.split(".")[:2])
+        current = latest_candidates.get(minor)
+        if current is None or tuple(map(int, version.split("."))) > tuple(
+            map(int, current.split("."))
+        ):
+            latest_candidates[minor] = version
+
     pending = [
         version
-        for version in sorted(set(candidates), key=lambda value: tuple(map(int, value.split("."))))
+        for version in sorted(latest_candidates.values(), key=lambda value: tuple(map(int, value.split("."))))
         if not existing.get(version, {}).get("source_sha256")
     ]
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -172,20 +185,39 @@ def main() -> int:
                 existing[version] = release
                 print(f"discovered Python {version}")
 
-    missing = [
-        stream
-        for stream in streams
-        if not any(
-            release["python"] == stream and release.get("source_sha256")
-            for release in existing.values()
-        )
-    ]
+    # Keep disabled streams/releases for auditability, but replace the
+    # supported set with only the latest patch for each supported minor.
+    latest_supported: dict[str, dict[str, str]] = {}
+    for stream in streams:
+        version = latest_candidates.get(stream)
+        if version is None:
+            fallback = [
+                release
+                for release in existing.values()
+                if release["python"] == stream and release.get("status") == "supported"
+            ]
+            if fallback:
+                latest_supported[stream] = max(
+                    fallback,
+                    key=lambda release: tuple(map(int, release["version"].split("."))),
+                )
+            continue
+        release = existing.get(version)
+        if release and release.get("source_sha256"):
+            latest_supported[stream] = release
+
+    missing = [stream for stream in streams if stream not in latest_supported]
     if missing:
         print(f"no Python releases discovered for streams: {', '.join(sorted(missing))}", file=sys.stderr)
         return 1
 
+    retained = [
+        release
+        for release in existing.values()
+        if release.get("status") != "supported"
+    ] + list(latest_supported.values())
     manifest["releases"] = sorted(
-        existing.values(),
+        retained,
         key=lambda release: tuple(map(int, release["version"].split("."))),
     )
     args.manifest.write_text(json.dumps(manifest, indent=2) + "\n")

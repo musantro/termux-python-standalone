@@ -45,10 +45,14 @@ jobs:
           body: |
             Automated update from the Python Foundation release metadata.
 
-            New CPython patch releases are added to `versions.json`; existing
-            releases remain available for immutable catalog entries. Termux
-            provides the Android build profile and pinned builder, but its
-            package repository does not gate upstream release discovery.
+            The manifest keeps only the newest final CPython patch release for
+            each supported minor stream. When a new patch appears, this PR
+            replaces that stream's previous entry; historical GitHub releases
+            remain immutable, but are not rebuilt or included in the current
+            uv catalog.
+
+            Termux provides the Android build profile and pinned builder, but
+            its package repository does not gate upstream release discovery.
 
             The normal validation and release workflows must pass before merging.
           labels: automated,dependencies

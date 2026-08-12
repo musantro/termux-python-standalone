@@ -130,6 +130,20 @@ def main() -> int:
             return 1
         seen_versions.add(version)
 
+    supported_releases = {
+        python: [release for release in releases if release["python"] == python and release["status"] == "supported"]
+        for python, status in stream_status.items()
+        if status == "supported"
+    }
+    missing = [python for python, entries in supported_releases.items() if not entries]
+    multiple = [python for python, entries in supported_releases.items() if len(entries) > 1]
+    if missing:
+        print(f"supported streams without a current patch release: {', '.join(sorted(missing))}", file=sys.stderr)
+        return 1
+    if multiple:
+        print(f"supported streams must have exactly one current patch release: {', '.join(sorted(multiple))}", file=sys.stderr)
+        return 1
+
     print(f"validated {len(streams)} Termux Python streams and {len(releases)} releases")
     return 0
 
