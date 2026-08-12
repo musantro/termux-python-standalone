@@ -31,9 +31,9 @@ def main() -> int:
         try:
             manifest = json.loads(pathlib.Path(sys.argv[2]).read_text())
             expected_versions = {
-                stream["version"]
-                for stream in manifest["streams"]
-                if stream["status"] == "supported"
+                release["version"]
+                for release in manifest["releases"]
+                if release["status"] == "supported"
             }
         except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
             print(f"invalid versions manifest: {exc}", file=sys.stderr)

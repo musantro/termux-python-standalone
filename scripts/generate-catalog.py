@@ -32,10 +32,12 @@ def main() -> int:
     target = manifest["target"]
     catalog: dict[str, dict[str, object]] = {}
 
-    for stream in manifest["streams"]:
-        if stream["status"] != "supported":
+    streams = {stream["python"]: stream for stream in manifest["streams"]}
+    for release in manifest["releases"]:
+        if release["status"] != "supported":
             continue
-        version = stream["version"]
+        stream = streams[release["python"]]
+        version = release["version"]
         major, minor, patch = (int(part) for part in version.split("."))
         archive = dist / f"cpython-{version}-android-{target['arch']}.tar.gz"
         if not archive.is_file():

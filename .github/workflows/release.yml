@@ -96,6 +96,7 @@ jobs:
       - name: Build and package CPython
         env:
           PYTHON_VERSION: ${{ matrix.version }}
+          PYTHON_SOURCE_SHA256: ${{ matrix.source_sha256 }}
           TERMUX_BUILDER_REF: ${{ matrix.termux_builder_ref }}
           TERMUX_RECIPE_REF: ${{ matrix.termux_recipe_ref }}
           TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
@@ -252,7 +253,7 @@ jobs:
       - name: Enable aarch64 containers through QEMU
         run: docker run --rm --privileged aptman/qus@sha256:9511e9363ce42fd18b9448151b1e0f6323eed396c5279295080375e01cc1b626 -s -- -p aarch64
 
-      - name: Install and run all supported Python versions in Termux Docker
+      - name: Install and smoke-test the latest Python from each stream
         run: |
           supported_pythons=$(python - <<'PY'
           import json

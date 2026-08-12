@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the supported manifest streams as a GitHub Actions matrix."""
+"""Render every supported CPython release as a GitHub Actions matrix."""
 
 from __future__ import annotations
 
@@ -14,17 +14,26 @@ def main() -> int:
         return 2
     manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
     builder_image = manifest["target"]["termux_builder_image"]
-    include = [
-        {
-            "python": stream["python"],
-            "version": stream["version"],
-            "termux_builder_ref": stream["termux_builder_ref"],
-            "termux_recipe_ref": stream["termux_recipe_ref"],
-            "termux_builder_image": builder_image,
-        }
+    streams = {
+        stream["python"]: stream
         for stream in manifest["streams"]
         if stream["status"] == "supported"
-    ]
+    }
+    include = []
+    for release in manifest["releases"]:
+        if release["status"] != "supported":
+            continue
+        stream = streams[release["python"]]
+        include.append(
+            {
+                "python": release["python"],
+                "version": release["version"],
+                "source_sha256": release["source_sha256"],
+                "termux_builder_ref": stream["termux_builder_ref"],
+                "termux_recipe_ref": stream["termux_recipe_ref"],
+                "termux_builder_image": builder_image,
+            }
+        )
     if not include:
         print("manifest has no supported streams", file=sys.stderr)
         return 1

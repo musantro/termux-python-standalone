@@ -20,7 +20,7 @@ must not be used on a regular Linux distribution.
 
 ## Use a published release
 
-After the first release, point `uv` at the catalog published with that release:
+After a release, point `uv` at the catalog published with that release:
 
 ```sh
 export UV_PYTHON_DOWNLOADS_JSON_URL=\
@@ -67,21 +67,27 @@ POSIX shell and Python for metadata validation:
 
 ## Maintaining supported versions
 
-`versions.json` is the single source of truth. It contains the supported
-minor streams, their exact Termux recipe commits, and the pinned builder
-commit. The current set follows Python's active stable branches: 3.10, 3.11,
-3.12, 3.13 and 3.14. Python 3.15 is intentionally left out while it is a
-pre-release, and 3.9 is end-of-life. The release workflow renders its matrix,
-catalog and runtime smoke-test loop directly from this manifest; no version
-list should be duplicated in a workflow.
+`versions.json` is the single source of truth. It has two layers:
+
+- `streams` defines the Android adaptation profile for each supported minor
+  branch and pins the Termux builder/recipe commits;
+- `releases` contains every final Python Foundation patch release selected for
+  those branches, including its official source SHA-256.
+
+The current set follows Python's active stable branches: 3.10, 3.11, 3.12,
+3.13 and 3.14. Python 3.15 is left out while it is a pre-release, and 3.9 is
+end-of-life. The release workflow renders its build matrix and catalog directly
+from this manifest; no version list is duplicated in a workflow.
 The Termux builder image is pinned by digest in the same target block.
 
-The scheduled `Sync Termux Python recipes` workflow checks the current
-`termux/termux-packages` recipe and opens or updates a PR when an enabled stream
-changes. Termux currently maintains one `python` package (the current 3.14
-stream), so the older active streams use their last reproducible Termux recipe
-commit until Termux publishes a newer recipe for them. New minor streams are
-intentionally not enabled automatically.
+The scheduled `Sync Python Foundation releases` workflow reads Python's release
+cycle metadata and the official source archive index. It adds newly published
+final patch releases, computes a SHA-256 when the historical release page does
+not provide one, and opens or updates a PR. Existing releases are never removed,
+so old immutable catalog entries remain reproducible. Termux does not need to
+publish a package for each patch: its recipe is used as the Android patch
+profile, while the pinned builder compiles the requested Python Foundation
+source version directly.
 
 After that PR is merged, the release workflow runs automatically, creates a
 date-based immutable tag such as `termux-python-20260811.1`, builds all
@@ -90,7 +96,9 @@ checksums and catalog entries, and only then publishes it. A `vX.Y.Z` tag or a
 manual workflow dispatch can also be used for a manually named release.
 
 The build uses Docker and the digest-pinned official Termux package-builder
-image for a reproducible packaging environment. The release workflow also
+image for a reproducible packaging environment. For each source release the
+workflow overrides only the recipe's Python version and source checksum; the
+Android patches and build infrastructure remain pinned. The release workflow also
 uses the `termux/termux-docker:aarch64` image plus QEMU to run every supported
 interpreter and `uv` in a Termux-like container. This catches most runtime
 regressions;
