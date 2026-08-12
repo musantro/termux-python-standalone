@@ -269,11 +269,13 @@ jobs:
           ))
           PY
           )
+          # Run as Termux's normal unprivileged user: the apt package carries
+          # a safety guard that refuses to run under the container's root UID.
           docker run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/repo" \
             -w /repo \
             -e SUPPORTED_PYTHONS="$supported_pythons" \
-            --entrypoint /entrypoint_root.sh \
+            --entrypoint /entrypoint.sh \
             termux/termux-docker@sha256:a8391ea57d799e10d0f3cf5ed41f32caf880c150275bda910233a5438bae0042 \
             /data/data/com.termux/files/usr/bin/sh -lc '
               set -e
