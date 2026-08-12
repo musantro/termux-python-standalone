@@ -49,8 +49,7 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertTrue(MODULE.prepare(path))
             prepared = path.read_text()
             self.assertIn(MODULE.GUARD_MARKER, prepared)
-            self.assertIn("LIBPYTHON=\"$(BLDLIBRARY)\"", prepared)
-            self.assertNotIn("LIBPYTHON=\"\\$(BLDLIBRARY)\"", prepared)
+            self.assertIn("LIBPYTHON=\"\\$(BLDLIBRARY)\"", prepared)
             self.assertLess(
                 prepared.index(MODULE.GUARD_MARKER),
                 prepared.index("termux_step_pre_configure()"),

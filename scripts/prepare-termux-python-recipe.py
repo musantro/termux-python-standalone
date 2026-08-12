@@ -27,12 +27,12 @@ GUARD = r'''
 	# unrelated change is deliberately left for the normal patch step to report.
 	for termux_python_patch in "$TERMUX_PKG_BUILDER_DIR"/*.patch; do
 		[[ -f "$termux_python_patch" ]] || continue
-		if grep -Fq 'LIBPYTHON="$(BLDLIBRARY)"' "$termux_python_patch" &&
+		if grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$termux_python_patch" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$termux_python_patch" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$TERMUX_PKG_SRCDIR/configure" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$TERMUX_PKG_SRCDIR/configure.ac" &&
-			! grep -Fq 'LIBPYTHON="$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure" &&
-			! grep -Fq 'LIBPYTHON="$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure.ac"; then
+			! grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure" &&
+			! grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure.ac"; then
 			echo "Skipping already upstreamed CPython patch: $(basename "$termux_python_patch")"
 			rm -f "$termux_python_patch"
 		fi
