@@ -45,6 +45,8 @@ class PrepareRecipeTests(unittest.TestCase):
         self.assertIn(r'LIBPYTHON="\$(BLDLIBRARY)"', MODULE.GUARD)
         self.assertIn(r'\$(MODULE_LDFLAGS_SHARED)', MODULE.GUARD)
         self.assertIn(r'MODULE_LDFLAGS_SHARED=$(if $(LIBPYTHON),$(BLDLIBRARY))', MODULE.GUARD)
+        self.assertIn("termux_python_staged_builder_dir", MODULE.GUARD)
+        self.assertIn("cp -a", MODULE.GUARD)
 
     def test_inserts_guard_in_post_source_hook_once(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

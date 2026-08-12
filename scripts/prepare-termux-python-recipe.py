@@ -22,25 +22,35 @@ POST_SOURCE_OPEN_RE = re.compile(r"termux_step_post_get_source\(\) \{\n")
 GUARD = r'''
 	# termux-python-standalone: skip upstreamed CPython patches
 	# CPython may include a Termux downstream fix in a later patch release. Only
-	# remove a patch when the source contains the complete equivalent change. A
-	# partial or unrelated change is deliberately left for the normal patch step
-	# to report.
-	for termux_python_patch in "$TERMUX_PKG_BUILDER_DIR"/*.patch; do
+	# remove a patch when the source contains the complete equivalent change.
+	# The checkout is mounted read-only for the builder user, so stage a writable
+	# copy of the recipe directory and point the later patch step at that copy.
+	termux_python_original_builder_dir="$TERMUX_PKG_BUILDER_DIR"
+	termux_python_staged_builder_dir=""
+	for termux_python_patch in "$termux_python_original_builder_dir"/*.patch; do
 		[[ -f "$termux_python_patch" ]] || continue
+		termux_python_skip_patch=false
 		if grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$termux_python_patch" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$termux_python_patch" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$TERMUX_PKG_SRCDIR/configure" &&
 			grep -Fq 'LIBPYTHON="-lpython${VERSION}${ABIFLAGS}"' "$TERMUX_PKG_SRCDIR/configure.ac" &&
 			! grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure" &&
 			! grep -Fq 'LIBPYTHON="\$(BLDLIBRARY)"' "$TERMUX_PKG_SRCDIR/configure.ac"; then
-			echo "Skipping already upstreamed CPython patch: $(basename "$termux_python_patch")"
-			rm -f "$termux_python_patch"
+			termux_python_skip_patch=true
 		elif grep -Fq '\$(LIBPYTHON)' "$termux_python_patch" &&
 			grep -Fq '\$(BLDLIBRARY)' "$termux_python_patch" &&
 			grep -Fq '\$(MODULE_LDFLAGS_SHARED)' "$TERMUX_PKG_SRCDIR/Modules/makesetup" &&
 			grep -Fq 'MODULE_LDFLAGS_SHARED=$(if $(LIBPYTHON),$(BLDLIBRARY))' "$TERMUX_PKG_SRCDIR/Makefile.pre.in"; then
+			termux_python_skip_patch=true
+		fi
+		if [[ "$termux_python_skip_patch" == true ]]; then
 			echo "Skipping already upstreamed CPython patch: $(basename "$termux_python_patch")"
-			rm -f "$termux_python_patch"
+			if [[ -z "$termux_python_staged_builder_dir" ]]; then
+				termux_python_staged_builder_dir="$(mktemp -d "${TMPDIR:-/tmp}/termux-python-builder.XXXXXX")"
+				cp -a "$termux_python_original_builder_dir"/. "$termux_python_staged_builder_dir"/
+				TERMUX_PKG_BUILDER_DIR="$termux_python_staged_builder_dir"
+			fi
+			rm -f "$termux_python_staged_builder_dir/$(basename "$termux_python_patch")"
 		fi
 	done
 '''
