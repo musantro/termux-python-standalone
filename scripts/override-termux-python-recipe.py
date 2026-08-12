@@ -61,7 +61,7 @@ termux_step_post_get_source() {
 	# The historical recipe's configure.patch was generated from CPython 3.6.
 	# Apply its Android adjustments by semantic markers so every 3.10 patch
 	# release (including 3.10.0) can use the same pinned recipe.
-	python3 - <<'PY'
+	TERMUX_PKG_SRCDIR="$TERMUX_PKG_SRCDIR" python3 - <<'PY'
 import os
 import pathlib
 import re
