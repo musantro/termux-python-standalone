@@ -147,7 +147,8 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
     build system does, which is why the same Termux dependency set works for
     3.12 and newer.  Put the Termux prefix include directory in ``CFLAGS``
     for the two historical streams so optional modules such as ``_bz2`` and
-    ``_ssl`` see the headers extracted by the builder.
+    ``_ssl`` see the headers extracted by the builder.  Their old extension
+    linker also omits ``libm`` from modules that call ``log``.
     """
     parsed = parse_version(version)
     if parsed[:2] not in {(3, 10), (3, 11)}:
@@ -163,7 +164,9 @@ def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
         marker,
         marker
         + "\n\t# CPython <=3.11 does not propagate CPPFLAGS to extension builds.\n"
-        + f"\t{include_flag}",
+        + f"\t{include_flag}\n"
+        + "\t# Keep math symbols available to extension modules such as _statistics.\n"
+        + '\tLIBS+=" -lm"',
         1,
     )
     recipe.write_text(text)
