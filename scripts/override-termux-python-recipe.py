@@ -139,8 +139,39 @@ def adapt_xattr_patch(patch: pathlib.Path, version: str) -> None:
     patch.write_text(text.replace(hunk, f"-{old}\n+{new}", 1))
 
 
+def ensure_legacy_prefix_include(recipe: pathlib.Path, version: str) -> None:
+    """Expose Termux dependency headers to CPython 3.10/3.11 extensions.
+
+    The old ``setup.py`` extension builder does not carry the recipe's
+    ``CPPFLAGS`` into its per-module compiler commands.  The modern CPython
+    build system does, which is why the same Termux dependency set works for
+    3.12 and newer.  Put the Termux prefix include directory in ``CFLAGS``
+    for the two historical streams so optional modules such as ``_bz2`` and
+    ``_ssl`` see the headers extracted by the builder.
+    """
+    parsed = parse_version(version)
+    if parsed[:2] not in {(3, 10), (3, 11)}:
+        return
+    text = recipe.read_text()
+    marker = '\tCFLAGS="${CFLAGS/-Oz/-O3}"'
+    include_flag = 'CFLAGS+=" -I$TERMUX_PREFIX/include"'
+    if include_flag in text:
+        return
+    if marker not in text:
+        raise ValueError(f"{recipe}: cannot locate historical CFLAGS hook")
+    text = text.replace(
+        marker,
+        marker
+        + "\n\t# CPython <=3.11 does not propagate CPPFLAGS to extension builds.\n"
+        + f"\t{include_flag}",
+        1,
+    )
+    recipe.write_text(text)
+
+
 def apply_legacy_recipe_compatibility(recipe: pathlib.Path, version: str) -> None:
     """Adapt historical patches and preserve equivalent configure probes."""
+    ensure_legacy_prefix_include(recipe, version)
     xattr_patch = recipe.with_name("0006-do-not-use-xattr.patch")
     if xattr_patch.exists():
         adapt_xattr_patch(xattr_patch, version)
