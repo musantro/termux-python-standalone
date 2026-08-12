@@ -2,63 +2,118 @@ name: Build and publish Termux Python
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - versions.json
     tags:
       - "v*"
+      - "termux-python-*"
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to build (for example v0.1.0)"
+        description: "Release tag to build (for example termux-python-20260811.1)"
         required: true
-        default: "v0.1.0"
+        default: "termux-python-manual"
 
 permissions:
   contents: write
+
+concurrency:
+  group: termux-python-release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   PYTHONUNBUFFERED: "1"
 
 jobs:
+  prepare:
+    name: Prepare manifest and release
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.manifest.outputs.matrix }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate manifest and render matrix
+        id: manifest
+        run: |
+          ./scripts/validate-versions.py versions.json
+          matrix=$(./scripts/render-matrix.py versions.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Select release tag
+        id: release
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_tag="$INPUT_RELEASE_TAG"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            release_tag="$GITHUB_REF_NAME"
+          else
+            release_tag="termux-python-$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          fi
+          if [[ ! "$release_tag" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|termux-python-[A-Za-z0-9._-]+)$ ]]; then
+            echo "invalid release tag: $release_tag" >&2
+            exit 1
+          fi
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "Selected release tag: $release_tag"
+
   build:
     name: CPython ${{ matrix.version }}
-    # Termux's current builder recipe requires autoconf/LLVM from Ubuntu
-    # Resolute; the 3.14 recipe does not build on Ubuntu 24.04.
+    needs: prepare
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - version: "3.13.13"
-            termux_ref: "9a7a2fa5ad3b134acd975f6b13d142d02737d782"
-          - version: "3.14.6"
-            termux_ref: "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b"
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Check out mirror repository
         uses: actions/checkout@v4
 
-      - name: Install build prerequisites
+      - name: Install packaging prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            autoconf automake clang dpkg-dev file git lld make patchelf \
-            pkg-config python3 rsync tar unzip wget xz-utils
+          sudo apt-get install -y dpkg-dev file patchelf
 
-      - name: Set up the Termux build environment
+      - name: Prepare the Termux build checkout
         run: |
           mkdir -p .termux-packages
           cd .termux-packages
           git clone --filter=blob:none https://github.com/termux/termux-packages.git .
-          git fetch --depth=1 origin "${{ matrix.termux_ref }}"
-          git checkout --detach "${{ matrix.termux_ref }}"
-          ./scripts/setup-ubuntu.sh
-          ./scripts/setup-android-sdk.sh
+          git fetch --depth=1 origin "${{ matrix.termux_builder_ref }}"
+          git checkout --detach "${{ matrix.termux_builder_ref }}"
+          docker pull "${{ matrix.termux_builder_image }}"
 
       - name: Build and package CPython
         env:
           PYTHON_VERSION: ${{ matrix.version }}
-          TERMUX_PACKAGES_REF: ${{ matrix.termux_ref }}
+          PYTHON_SOURCE_SHA256: ${{ matrix.source_sha256 }}
+          TERMUX_BUILDER_REF: ${{ matrix.termux_builder_ref }}
+          TERMUX_RECIPE_REF: ${{ matrix.termux_recipe_ref }}
           TERMUX_PACKAGES_DIR: ${{ github.workspace }}/.termux-packages
+          TERMUX_USE_DOCKER: "true"
+          TERMUX_BUILDER_IMAGE_NAME: ${{ matrix.termux_builder_image }}
           OUTPUT_DIR: ${{ github.workspace }}/dist
         run: ./scripts/build-standalone.sh
+
+      - name: Validate archive contents in the Termux container
+        env:
+          PYTHON_VERSION: ${{ matrix.version }}
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            "${{ matrix.termux_builder_image }}" \
+            bash -lc "tar -tzf dist/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz | grep -E '^install/bin/python${PYTHON_VERSION%.*}$'"
 
       - name: Validate archive contents
         env:
@@ -78,11 +133,18 @@ jobs:
 
   publish:
     name: Publish release
-    needs: build
-    runs-on: ubuntu-26.04
+    needs: [prepare, build, runtime]
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
     steps:
       - name: Check out mirror repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -92,30 +154,132 @@ jobs:
           merge-multiple: true
 
       - name: Prepare release files and catalog
-        env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
           mkdir -p dist
           cp downloaded/cpython-*.tar.gz dist/
           cp downloaded/cpython-*.tar.gz.sha256 dist/
-          : > dist/python-downloads.json
-          printf '{}\n' > dist/python-downloads.json
-          python3 scripts/generate-catalog.py 3.13.13 "$RELEASE_TAG"
-          python3 scripts/generate-catalog.py 3.14.6 "$RELEASE_TAG"
-          python3 scripts/validate-metadata.py dist/python-downloads.json
-          sha256sum dist/* > dist/SHA256SUMS
+          python scripts/generate-catalog.py versions.json "$RELEASE_TAG" dist
+          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
+          sha256sum dist/cpython-*.tar.gz dist/cpython-*.tar.gz.sha256 dist/python-downloads.json \
+            > dist/SHA256SUMS
 
-      - name: Create or update GitHub release
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-            gh release create "$RELEASE_TAG" --title "Termux Python $RELEASE_TAG" \
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "Termux Python $RELEASE_TAG" \
               --notes "Standalone CPython builds for Termux/Android aarch64."
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
           gh release upload "$RELEASE_TAG" \
             dist/cpython-*.tar.gz \
             dist/cpython-*.tar.gz.sha256 \
             dist/python-downloads.json \
             dist/SHA256SUMS \
             --clobber
+
+      - name: Verify uploaded assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf verify
+          mkdir verify
+          gh release download "$RELEASE_TAG" \
+            --dir verify \
+            --pattern 'cpython-*.tar.gz' \
+            --pattern 'cpython-*.tar.gz.sha256' \
+            --pattern 'python-downloads.json'
+          for checksum in verify/cpython-*.tar.gz.sha256; do
+            archive="${checksum%.sha256}"
+            expected=$(awk '{print $1}' "$checksum")
+            actual=$(sha256sum "$archive" | awk '{print $1}')
+            [[ "$expected" == "$actual" ]] || {
+              echo "checksum mismatch for $archive" >&2
+              exit 1
+            }
+          done
+          ./scripts/validate-metadata.py verify/python-downloads.json versions.json
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest
+
+  runtime:
+    name: Runtime smoke test in Termux Docker
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out mirror repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          pattern: cpython-*-android-aarch64
+          merge-multiple: true
+
+      - name: Prepare local uv catalog
+        run: |
+          mkdir -p dist
+          cp downloaded/cpython-*.tar.gz dist/
+          python scripts/generate-catalog.py versions.json runtime-test dist
+          ./scripts/validate-metadata.py dist/python-downloads.json versions.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("dist/python-downloads.json")
+          catalog = json.loads(path.read_text())
+          for entry in catalog.values():
+              entry["url"] = f"file:///repo/dist/{entry['url'].rsplit('/', 1)[-1]}"
+          path.write_text(json.dumps(catalog, indent=2) + "\n")
+          PY
+
+      - name: Enable aarch64 containers through QEMU
+        run: docker run --rm --privileged aptman/qus@sha256:9511e9363ce42fd18b9448151b1e0f6323eed396c5279295080375e01cc1b626 -s -- -p aarch64
+
+      - name: Install and smoke-test the latest Python from each stream
+        run: |
+          supported_pythons=$(python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("versions.json").read_text())
+          print(" ".join(
+              stream["python"]
+              for stream in manifest["streams"]
+              if stream["status"] == "supported"
+          ))
+          PY
+          )
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            -e SUPPORTED_PYTHONS="$supported_pythons" \
+            --entrypoint /entrypoint_root.sh \
+            termux/termux-docker@sha256:a8391ea57d799e10d0f3cf5ed41f32caf880c150275bda910233a5438bae0042 \
+            /data/data/com.termux/files/usr/bin/sh -lc '
+              set -e
+              apt update
+              apt install -y uv
+              export UV_PYTHON_DOWNLOADS_JSON_URL=file:///repo/dist/python-downloads.json
+              uv python install --reinstall $SUPPORTED_PYTHONS
+              for python_stream in $SUPPORTED_PYTHONS; do
+                /repo/scripts/smoke-test.sh "$(uv python find "$python_stream")"
+              done
+            '

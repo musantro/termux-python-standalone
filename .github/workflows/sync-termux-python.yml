@@ -1,0 +1,54 @@
+name: Sync Python Foundation releases
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: python-foundation-release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Check Python Foundation releases
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Synchronize Python Foundation releases
+        run: |
+          set -euo pipefail
+          ./scripts/sync-python-releases.py versions.json
+          ./scripts/validate-versions.py versions.json
+
+      - name: Open or update synchronization PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/sync-python-releases
+          delete-branch: true
+          commit-message: "sync Python Foundation releases"
+          title: "chore: sync Python Foundation releases"
+          body: |
+            Automated update from the Python Foundation release metadata.
+
+            New CPython patch releases are added to `versions.json`; existing
+            releases remain available for immutable catalog entries. Termux
+            provides the Android build profile and pinned builder, but its
+            package repository does not gate upstream release discovery.
+
+            The normal validation and release workflows must pass before merging.
+          labels: automated,dependencies

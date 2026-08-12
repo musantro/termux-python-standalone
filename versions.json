@@ -1,10 +1,503 @@
 {
-  "3.13.13": {
-    "termux_packages_ref": "9a7a2fa5ad3b134acd975f6b13d142d02737d782",
-    "termux_packages_ref_note": "Termux python recipe for CPython 3.13.13"
+  "schema": 2,
+  "target": {
+    "arch": "aarch64",
+    "android_api": 24,
+    "uv_os": "linux",
+    "uv_libc": "none",
+    "termux_builder_image": "ghcr.io/termux/package-builder@sha256:4471cc862c570b15c3a0440668e80b37c9c1750d94fa88a0a4885d959ccf832e"
   },
-  "3.14.6": {
-    "termux_packages_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
-    "termux_packages_ref_note": "Termux python recipe for CPython 3.14.6"
-  }
+  "source": {
+    "release_cycle_url": "https://peps.python.org/api/release-cycle.json",
+    "ftp_index_url": "https://www.python.org/ftp/python/",
+    "release_page_url": "https://www.python.org/downloads/release/python-{compact}/",
+    "statuses": [
+      "bugfix",
+      "security"
+    ]
+  },
+  "streams": [
+    {
+      "python": "3.10",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "f1c878c5731537b287ac6b4c53b7b6a05df486dd",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "2cb1f4277481e4c6a74d39f057580c82adadf372",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "860d189e7280b1bc49a30c62a08d80509250193d",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "9a7a2fa5ad3b134acd975f6b13d142d02737d782",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "termux_builder_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "termux_recipe_ref": "a5c71451f279c6b6d9736bf9f9de8f4bcf5b548b",
+      "status": "supported"
+    }
+  ],
+  "releases": [
+    {
+      "python": "3.10",
+      "version": "3.10.0",
+      "source_sha256": "5a99f8e7a6a11a7b98b4e75e0d1303d3832cada5534068f69c7b6222a7b1b002",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.1",
+      "source_sha256": "a7f1265b6e1a5de1ec5c3ec7019ab53413469934758311e9d240c46e5ae6e177",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.2",
+      "source_sha256": "17de3ac7da9f2519aa9d64378c603a73a0e9ad58dffa8812e45160c086de64c7",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.3",
+      "source_sha256": "596c72de998dc39205bc4f70ef0dbf7edec740a306d09b49a9bd0a77806730dc",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.4",
+      "source_sha256": "80bf925f571da436b35210886cf79f6eb5fa5d6c571316b73568343451f77a19",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.5",
+      "source_sha256": "8437efd5b106ef0a75aabfbf23d880625120a73a86a22ade4d2e2e68d7b74486",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.6",
+      "source_sha256": "f795ff87d11d4b0c7c33bc8851b0c28648d8a4583aa2100a98c22b4326b6d3f3",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.7",
+      "source_sha256": "6eed8415b7516fb2f260906db5d48dd4c06acc0cb24a7d6cc15296a604dcdc48",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.8",
+      "source_sha256": "6a30ecde59c47048013eb5a658c9b5dec277203d2793667f578df7671f7f03f3",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.9",
+      "source_sha256": "5ae03e308260164baba39921fdb4dbf8e6d03d8235a939d4582b33f0b5e46a83",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.10",
+      "source_sha256": "0419e9085bf51b7a672009b3f50dbf1859acdf18ba725d0ec19aa5c8503f0ea3",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.11",
+      "source_sha256": "3c3bc3048303721c904a03eb8326b631e921f11cc3be2988456a42f115daf04c",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.12",
+      "source_sha256": "afb74bf19130e7a47d10312c8f5e784f24e0527981eab68e20546cfb865830b8",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.13",
+      "source_sha256": "5c88848668640d3e152b35b4536ef1c23b2ca4bd2c957ef1ecbb053f571dd3f6",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.14",
+      "source_sha256": "9c50481faa8c2832329ba0fc8868d0a606a680fc4f60ec48d26ce8e076751fda",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.15",
+      "source_sha256": "aab0950817735172601879872d937c1e4928a57c409ae02369ec3d91dccebe79",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.16",
+      "source_sha256": "bfb249609990220491a1b92850a07135ed0831e41738cf681d63cf01b2a8fbd1",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.17",
+      "source_sha256": "4c68050f049d1b4ac5aadd0df5f27941c0350d2a9e7ab0907ee5eb5225d9d6b0",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.18",
+      "source_sha256": "ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.19",
+      "source_sha256": "c8f4a596572201d81dd7df91f70e177e19a70f1d489968b54b5fbbf29a97c076",
+      "status": "supported"
+    },
+    {
+      "python": "3.10",
+      "version": "3.10.20",
+      "source_sha256": "de6517421601e39a9a3bc3e1bc4c7b2f239297423ee05e282598c83ec0647505",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.0",
+      "source_sha256": "a57dc82d77358617ba65b9841cee1e3b441f386c3789ddc0676eca077f2951c3",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.1",
+      "source_sha256": "85879192f2cffd56cb16c092905949ebf3e5e394b7f764723529637901dfb58f",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.2",
+      "source_sha256": "29e4b8f5f1658542a8c13e2dd277358c9c48f2b2f7318652ef1675e402b9d2af",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.3",
+      "source_sha256": "8a5db99c961a7ecf27c75956189c9602c968751f11dbeae2b900dbff1c085b5e",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.4",
+      "source_sha256": "2f0e409df2ab57aa9fc4cbddfb976af44e4e55bf6f619eee6bc5c2297264a7f6",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.5",
+      "source_sha256": "85cd12e9cf1d6d5a45f17f7afe1cebe7ee628d3282281c492e86adf636defa3f",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.6",
+      "source_sha256": "0fab78fa7f133f4f38210c6260d90d7c0d5c7198446419ce057ec7ac2e6f5f38",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.7",
+      "source_sha256": "18e1aa7e66ff3a58423d59ed22815a6954e53342122c45df20c96877c062b9b7",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.8",
+      "source_sha256": "9e06008c8901924395bc1da303eac567a729ae012baa182ab39269f650383bb3",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.9",
+      "source_sha256": "9b1e896523fc510691126c864406d9360a3d1e986acbda59cda57b5abda45b87",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.10",
+      "source_sha256": "07a4356e912900e61a15cb0949a06c4a05012e213ecd6b4e84d0f67aabbee372",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.11",
+      "source_sha256": "2a9920c7a0cd236de33644ed980a13cbbc21058bfdc528febb6081575ed73be3",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.12",
+      "source_sha256": "849da87af4df137710c1796e276a955f7a85c9f971081067c8f565d15c352a09",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.13",
+      "source_sha256": "8fb5f9fbc7609fa822cb31549884575db7fd9657cbffb89510b5d7975963a83a",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.14",
+      "source_sha256": "8d3ed8ec5c88c1c95f5e558612a725450d2452813ddad5e58fdb1a53b1209b78",
+      "status": "supported"
+    },
+    {
+      "python": "3.11",
+      "version": "3.11.15",
+      "source_sha256": "272179ddd9a2e41a0fc8e42e33dfbdca0b3711aa5abf372d3f2d51543d09b625",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.0",
+      "source_sha256": "795c34f44df45a0e9b9710c8c71c15c671871524cd412ca14def212e8ccb155d",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.1",
+      "source_sha256": "8dfb8f426fcd226657f9e2bd5f1e96e53264965176fa17d32658e873591aeb21",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.2",
+      "source_sha256": "be28112dac813d2053545c14bf13a16401a21877f1a69eb6ea5d84c4a0f3d870",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.3",
+      "source_sha256": "56bfef1fdfc1221ce6720e43a661e3eb41785dd914ce99698d8c7896af4bdaa1",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.4",
+      "source_sha256": "f6d419a6d8743ab26700801b4908d26d97e8b986e14f95de31b32de2b0e79554",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.5",
+      "source_sha256": "fa8a2e12c5e620b09f53e65bcd87550d2e5a1e2e04bf8ba991dcc55113876397",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.6",
+      "source_sha256": "1999658298cf2fb837dffed8ff3c033ef0c98ef20cf73c5d5f66bed5ab89697c",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.7",
+      "source_sha256": "24887b92e2afd4a2ac602419ad4b596372f67ac9b077190f459aba390faf5550",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.8",
+      "source_sha256": "c909157bb25ec114e5869124cc2a9c4a4d4c1e957ca4ff553f1edc692101154e",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.9",
+      "source_sha256": "7220835d9f90b37c006e9842a8dff4580aaca4318674f947302b8d28f3f81112",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.10",
+      "source_sha256": "07ab697474595e06f06647417d3c7fa97ded07afc1a7e4454c5639919b46eaea",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.11",
+      "source_sha256": "c30bb24b7f1e9a19b11b55a546434f74e739bb4c271a3e3a80ff4380d49f7adb",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.12",
+      "source_sha256": "fb85a13414b028c49ba18bbd523c2d055a30b56b18b92ce454ea2c51edc656c4",
+      "status": "supported"
+    },
+    {
+      "python": "3.12",
+      "version": "3.12.13",
+      "source_sha256": "c08bc65a81971c1dd5783182826503369466c7e67374d1646519adf05207b684",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.0",
+      "source_sha256": "086de5882e3cb310d4dca48457522e2e48018ecd43da9cdf827f6a0759efb07d",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.1",
+      "source_sha256": "9cf9427bee9e2242e3877dd0f6b641c1853ca461f39d6503ce260a59c80bf0d9",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.2",
+      "source_sha256": "d984bcc57cd67caab26f7def42e523b1c015bbc5dc07836cf4f0b63fa159eb56",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.3",
+      "source_sha256": "40f868bcbdeb8149a3149580bb9bfd407b3321cd48f0be631af955ac92c0e041",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.4",
+      "source_sha256": "27b15a797562a2971dce3ffe31bb216042ce0b995b39d768cf15f784cc757365",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.5",
+      "source_sha256": "93e583f243454e6e9e4588ca2c2662206ad961659863277afcdb96801647d640",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.6",
+      "source_sha256": "17ba5508819d8736a14fbfc47d36e184946a877851b2e9c4b6c43acb44a3b104",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.7",
+      "source_sha256": "5462f9099dfd30e238def83c71d91897d8caa5ff6ebc7a50f14d4802cdaaa79a",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.8",
+      "source_sha256": "b9910730526b298299b46b35595ced9055722df60c06ad6301f6a4e2c728a252",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.9",
+      "source_sha256": "ed5ef34cda36cfa2f3a340f07cac7e7814f91c7f3c411f6d3562323a866c5c66",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.10",
+      "source_sha256": "bc673c04375a1a3f0808c27ba8f0411ab811ad390a8740318ccb9c60fad8fd77",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.11",
+      "source_sha256": "16ede7bb7cdbfa895d11b0642fa0e523f291e6487194d53cf6d3b338c3a17ea2",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.12",
+      "source_sha256": "2a84cd31dd8d8ea8aaff75de66fc1b4b0127dd5799aa50a64ae9a313885b4593",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.13",
+      "source_sha256": "2ab91ff401783ccca64f75d10c882e957bdfd60e2bf5a72f8421793729b78a71",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.14",
+      "source_sha256": "639e43243c620a308f968213df9e00f2f8f62332f7adbaa7a7eeb9783057c690",
+      "status": "supported"
+    },
+    {
+      "python": "3.13",
+      "version": "3.13.15",
+      "source_sha256": "1e66a7945a48390ee4c2a4268a0e4185884059a13c4aab6d148aa208deea4a76",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.0",
+      "source_sha256": "2299dae542d395ce3883aca00d3c910307cd68e0b2f7336098c8e7b7eee9f3e9",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.1",
+      "source_sha256": "8dfa08b1959d9d15838a1c2dab77dc8d8ff4a553a1ed046dfacbc8095c6d42fc",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.2",
+      "source_sha256": "ce543ab854bc256b61b71e9b27f831ffd1bfd60a479d639f8be7f9757cf573e9",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.3",
+      "source_sha256": "a97d5549e9ad81fe17159ed02c68774ad5d266c72f8d9a0b5a9c371fe85d902b",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.4",
+      "source_sha256": "d923c51303e38e249136fc1bdf3568d56ecb03214efdef48516176d3d7faaef8",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.5",
+      "source_sha256": "7e32597b99e5d9a39abed35de4693fa169df3e5850d4c334337ffd6a19a36db6",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.6",
+      "source_sha256": "143b1dddefaec3bd2e21e3b839b34a2b7fb9842272883c576420d605e9f30c63",
+      "status": "supported"
+    },
+    {
+      "python": "3.14",
+      "version": "3.14.7",
+      "source_sha256": "3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81",
+      "status": "supported"
+    }
+  ]
 }

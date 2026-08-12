@@ -4,24 +4,69 @@ set -euo pipefail
 # This script is run inside the GitHub Actions matrix. It builds the pinned
 # Termux python recipe and turns its .deb payload into uv's install_only layout.
 
-: "${PYTHON_VERSION:?set PYTHON_VERSION, e.g. 3.13.13}"
-: "${TERMUX_PACKAGES_REF:?set TERMUX_PACKAGES_REF to a pinned commit}"
+: "${PYTHON_VERSION:?set PYTHON_VERSION, e.g. 3.14.7}"
+: "${PYTHON_SOURCE_SHA256:?set PYTHON_SOURCE_SHA256 to the Python Foundation source digest}"
+: "${TERMUX_BUILDER_REF:?set TERMUX_BUILDER_REF to a pinned build-system commit}"
+: "${TERMUX_RECIPE_REF:?set TERMUX_RECIPE_REF to a pinned Python recipe commit}"
 : "${OUTPUT_DIR:?set OUTPUT_DIR to the artifact directory}"
 
 repo_dir=${TERMUX_PACKAGES_DIR:-"$PWD/.termux-packages"}
+project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 mkdir -p "$OUTPUT_DIR"
 
 if [[ ! -d "$repo_dir/.git" ]]; then
 	git clone --filter=blob:none https://github.com/termux/termux-packages.git "$repo_dir"
 fi
-git -C "$repo_dir" fetch --depth=1 origin "$TERMUX_PACKAGES_REF"
-git -C "$repo_dir" checkout --detach "$TERMUX_PACKAGES_REF"
+git -C "$repo_dir" fetch --depth=1 origin "$TERMUX_BUILDER_REF" "$TERMUX_RECIPE_REF"
+git -C "$repo_dir" checkout --detach "$TERMUX_BUILDER_REF"
+
+# Keep the current build infrastructure (including its Ubuntu/NDK setup), but
+# use the pinned Android adaptation profile and patches from the requested
+# minor stream's recipe commit.
+rm -rf "$repo_dir/packages/python"
+git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
+	| tar -x -C "$repo_dir"
+
+# Termux's package recipe is used as the Android adaptation profile. Its
+# version and source checksum are overridden so Python Foundation releases can
+# be built before Termux packages them itself.
+python "$project_dir/scripts/override-termux-python-recipe.py" \
+	"$repo_dir/packages/python/build.sh" "$PYTHON_VERSION" "$PYTHON_SOURCE_SHA256"
+
+# The current build infrastructure uses this patch name while building the
+# minimal host Python. Older Python recipes used a different sequence of patch
+# names, so expose their equivalent ctypes patch under the current name. Keep
+# only one copy: the generic package patch loop also sees this directory.
+if [[ ! -f "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch" ]]; then
+	compat_patch=""
+	for candidate in \
+		0009-fix-ctypes-util-find_library.patch \
+		0003-ctypes-util-use-llvm-tools.patch \
+		Lib-ctypes-util.py.patch; do
+		if [[ -f "$repo_dir/packages/python/$candidate" ]]; then
+			compat_patch="$repo_dir/packages/python/$candidate"
+			break
+		fi
+	done
+	if [[ -n "$compat_patch" ]]; then
+		cp "$compat_patch" "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+		rm -f "$compat_patch"
+	else
+		git -C "$repo_dir" show "$TERMUX_BUILDER_REF:packages/python/0008-fix-ctypes-util-find_library.patch" \
+			> "$repo_dir/packages/python/0008-fix-ctypes-util-find_library.patch"
+	fi
+fi
 
 cd "$repo_dir"
 
 # The package recipe already contains the Android-specific patches, configure
 # probes, and host-build Python setup maintained by Termux.
-./build-package.sh -a aarch64 -I -f python
+if [[ "${TERMUX_USE_DOCKER:-false}" == "true" ]]; then
+	TERMUX_BUILDER_IMAGE_NAME="${TERMUX_BUILDER_IMAGE_NAME:-ghcr.io/termux/package-builder:latest}" \
+		./scripts/run-docker.sh ./build-package.sh -a aarch64 -I -f python
+else
+	./build-package.sh -a aarch64 -I -f python
+fi
 
 deb=$(find output -maxdepth 1 -type f -name 'python_*.deb' -print -quit)
 if [[ -z "$deb" ]]; then
@@ -49,7 +94,41 @@ cp -a "$termux_prefix/." "$install_dir/"
 # libpython itself is included in the package payload.
 rm -rf "$install_dir/share/man" "$install_dir/share/doc" "$install_dir/var"
 
+# Termux recipes normally encode the system prefix in the ELF RUNPATH. A uv
+# managed installation lives elsewhere, so prefer the archive's own libpython
+# and extension modules while retaining the official Termux prefix as a
+# fallback for shared runtime dependencies such as sqlite and OpenSSL.
+while IFS= read -r -d '' elf; do
+	relative=${elf#"$install_dir/"}
+	case "$relative" in
+		bin/*)
+			rpath='$ORIGIN/../lib:/data/data/com.termux/files/usr/lib'
+			;;
+		lib/python*/lib-dynload/*)
+			rpath='$ORIGIN/../..:/data/data/com.termux/files/usr/lib'
+			;;
+		lib/*.so*)
+			rpath='$ORIGIN:/data/data/com.termux/files/usr/lib'
+			;;
+		*)
+			continue
+			;;
+	esac
+	# Some Android ELF files are reported by `file` as "ELF shared object"
+	# rather than as an executable. Match the stable ELF marker instead of a
+	# more specific description so the main interpreter is relocated too.
+	if file -b "$elf" | grep -q 'ELF'; then
+		patchelf --set-rpath "$rpath" "$elf"
+		if [[ "$relative" == bin/python* ]]; then
+			printf 'RUNPATH %s: ' "$relative"
+			patchelf --print-rpath "$elf"
+		fi
+	fi
+# Termux package payloads can use owner-only mode 700 for executables. Match
+# any execute bit so the main interpreter is included in the relocation pass.
+done < <(find "$install_dir" -type f \( -perm /111 -o -name '*.so*' \) -print0)
+
 archive="$OUTPUT_DIR/cpython-${PYTHON_VERSION}-android-aarch64.tar.gz"
 tar -C "$work_dir" -czf "$archive" install
-sha256sum "$archive" > "$archive.sha256"
+sha256sum "$archive" | sed "s#  $archive#  $(basename "$archive")#" > "$archive.sha256"
 printf 'Built %s\n' "$archive"
