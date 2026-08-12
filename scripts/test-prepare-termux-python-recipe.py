@@ -25,6 +25,11 @@ termux_step_pre_configure() {
 }
 """
 
+RECIPE_WITHOUT_POST_SOURCE = """termux_step_pre_configure() {
+\ttrue
+}
+"""
+
 
 class PrepareRecipeTests(unittest.TestCase):
     def test_inserts_guard_in_post_source_hook_once(self) -> None:
@@ -42,7 +47,17 @@ class PrepareRecipeTests(unittest.TestCase):
             self.assertFalse(MODULE.prepare(path))
             self.assertEqual(prepared, path.read_text())
 
-    def test_rejects_recipe_without_post_source_hook(self) -> None:
+    def test_creates_post_source_hook_when_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "build.sh"
+            path.write_text(RECIPE_WITHOUT_POST_SOURCE)
+            self.assertTrue(MODULE.prepare(path))
+            prepared = path.read_text()
+            self.assertIn("termux_step_post_get_source() {", prepared)
+            self.assertIn(MODULE.GUARD_MARKER, prepared)
+            self.assertIn("termux_step_pre_configure() {\n\ttrue", prepared)
+
+    def test_rejects_recipe_without_configure_hook(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "build.sh"
             path.write_text("TERMUX_PKG_VERSION=\"3.13.15\"\n")
@@ -51,4 +66,4 @@ class PrepareRecipeTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+	 unittest.main()
