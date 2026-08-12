@@ -33,3 +33,5 @@ jobs:
         run: bash -n scripts/*.sh
       - name: Validate Python scripts
         run: python -m py_compile scripts/*.py
+      - name: Test recipe preparation
+        run: python scripts/test-prepare-termux-python-recipe.py

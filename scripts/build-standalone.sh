@@ -33,6 +33,12 @@ git -C "$repo_dir" archive "$TERMUX_RECIPE_REF" packages/python \
 python "$project_dir/scripts/override-termux-python-recipe.py" \
 	"$repo_dir/packages/python/build.sh" "$PYTHON_VERSION" "$PYTHON_SOURCE_SHA256"
 
+# A CPython patch release can incorporate a downstream Termux patch.  Add a
+# content-aware guard to the recipe so the builder skips only that already
+# upstreamed patch, while still reporting partial or unrelated patch failures.
+python "$project_dir/scripts/prepare-termux-python-recipe.py" \
+	"$repo_dir/packages/python/build.sh"
+
 # The current build infrastructure uses this patch name while building the
 # minimal host Python. Older Python recipes used a different sequence of patch
 # names, so expose their equivalent ctypes patch under the current name. Keep
