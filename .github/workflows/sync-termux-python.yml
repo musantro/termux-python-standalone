@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: python-foundation-release-sync
@@ -22,6 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          token: ${{ secrets.SYNC_PR_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,25 +34,14 @@ jobs:
           ./scripts/sync-python-releases.py versions.json
           ./scripts/validate-versions.py versions.json
 
-      - name: Open or update synchronization PR
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ github.token }}
-          branch: automation/sync-python-releases
-          delete-branch: true
-          commit-message: "sync Python Foundation releases"
-          title: "chore: sync Python Foundation releases"
-          body: |
-            Automated update from the Python Foundation release metadata.
-
-            The manifest keeps only the newest final CPython patch release for
-            each supported minor stream. When a new patch appears, this PR
-            replaces that stream's previous entry; historical GitHub releases
-            remain immutable, but are not rebuilt or included in the current
-            uv catalog.
-
-            Termux provides the Android build profile and pinned builder, but
-            its package repository does not gate upstream release discovery.
-
-            The normal validation and release workflows must pass before merging.
-          labels: automated,dependencies
+      - name: Commit synchronized manifest directly to main
+        run: |
+          if git diff --quiet -- versions.json; then
+            echo "No new CPython releases detected"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add versions.json
+          git commit -m "sync Python Foundation releases"
+          git push origin HEAD:main
